@@ -1843,6 +1843,35 @@ def test_hardening(api, mock):
     bpy.data.node_groups.remove(ng)
 
 
+def test_view_image(api, mock):
+    section("Full-size image viewer")
+
+    check("view_image operator registered",
+          hasattr(bpy.ops.tripo, "view_image"))
+
+    # A pruned or moved file must refuse cleanly, not traceback.
+    try:
+        bpy.ops.tripo.view_image(path="/nonexistent/image.png")
+        refused = False
+    except RuntimeError as e:
+        refused = "no longer exists" in str(e)
+    check("missing file refuses with a clear message", refused)
+
+    # With a real file, headless Blender cannot open a window -- but it must
+    # fail at that stage with a clean report, never a crash, and the image
+    # datablock must load.
+    path = mock.sample_image()
+    n_images = len(bpy.data.images)
+    try:
+        bpy.ops.tripo.view_image(path=path)
+        outcome = "opened"
+    except RuntimeError as e:
+        outcome = "window" if "viewer window" in str(e) else str(e)
+    check("existing file loads and fails only at the window stage",
+          outcome in ("opened", "window"), outcome)
+    check("image datablock loaded", len(bpy.data.images) > n_images)
+
+
 def test_lifecycle(api, mock):
     section("Register / unregister symmetry")
 
@@ -2035,6 +2064,7 @@ def main():
         test_recover_and_prune(api, mock)
         test_money_guards(api, mock)
         test_hardening(api, mock)
+        test_view_image(api, mock)
         test_lifecycle(api, mock)
         test_new_file_only_setup(api, mock)
     finally:

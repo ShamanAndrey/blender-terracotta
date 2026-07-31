@@ -210,12 +210,19 @@ class TripoNode:
         if state == "done":
             thumb = previews.icon_id(f"node_{self.job_id}", job.get("thumb"))
             if thumb:
-                layout.template_icon(icon_value=thumb, scale=7.0)
+                # Scale from the node's width so the preview fills the body
+                # edge to edge -- and resizing the node resizes the preview.
+                layout.template_icon(icon_value=thumb,
+                                     scale=max(4.0, self.width / 20.0))
             row = layout.row()
             row.label(text=", ".join(job.get("objects") or []) or "complete",
                       icon="CHECKMARK")
             if job.get("credits"):
                 row.label(text=f"{int(job['credits'])}cr")
+            if job.get("thumb"):
+                op = row.operator("tripo.view_image", text="", icon="ZOOM_IN",
+                                  emboss=False)
+                op.path = job["thumb"]
             return
 
         pct = job.get("progress")
@@ -679,8 +686,14 @@ class GoogleViewsNode(GoogleNodeMixin, TripoNode, bpy.types.Node):
                                             images[view])
                     cell = grid.column(align=True)
                     if icon:
-                        cell.template_icon(icon_value=icon, scale=4.0)
-                    cell.label(text=view)
+                        # Two columns share the node body: half width each.
+                        cell.template_icon(icon_value=icon,
+                                           scale=max(3.0, self.width / 42.0))
+                    r = cell.row(align=True)
+                    r.label(text=view)
+                    op = r.operator("tripo.view_image", text="",
+                                    icon="ZOOM_IN", emboss=False)
+                    op.path = images[view]
 
         row = self.action_row(layout)
         op = row.operator("tripo.google_views", icon="PLAY",

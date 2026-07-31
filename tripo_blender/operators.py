@@ -928,7 +928,39 @@ def _object_menu(self, context):
 
 
 
+class TRIPO_OT_view_image(bpy.types.Operator):
+    bl_idname = "tripo.view_image"
+    bl_label = "View Image"
+    bl_description = ("Open this image at full resolution in an Image Editor "
+                      "window. Node previews are capped at icon size; the "
+                      "real file has the detail")
+
+    path: bpy.props.StringProperty()
+
+    def execute(self, context):
+        path = bpy.path.abspath(self.path or "")
+        if not path or not os.path.exists(path):
+            self.report({"ERROR"}, "Image file no longer exists")
+            return {"CANCELLED"}
+        try:
+            img = bpy.data.images.load(path, check_existing=True)
+        except Exception as e:
+            self.report({"ERROR"}, f"Could not load image: {e}")
+            return {"CANCELLED"}
+        try:
+            bpy.ops.wm.window_new()
+            window = context.window_manager.windows[-1]
+            area = window.screen.areas[0]
+            area.type = "IMAGE_EDITOR"
+            area.spaces.active.image = img
+        except Exception as e:
+            self.report({"ERROR"}, f"Could not open a viewer window: {e}")
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
 classes = (
+    TRIPO_OT_view_image,
     TRIPO_OT_render_reference,
     TRIPO_OT_optimize,
     TRIPO_OT_frame,
