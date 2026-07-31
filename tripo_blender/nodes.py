@@ -541,6 +541,16 @@ class GoogleNodeMixin:
     def has_result(self):
         return bool(self.images())
 
+    def _has_live_job(self):
+        """Whether the in-memory job still exists.
+
+        status() reports state "unknown" for a job id it no longer knows --
+        which is truthy, and treating it as live was exactly the bug that
+        hid a paid result after a restart.
+        """
+        state = self.job().get("state")
+        return bool(state) and state != "unknown"
+
     def draw_status(self, layout):
         """Live job when there is one; otherwise the persisted result.
 
@@ -548,7 +558,7 @@ class GoogleNodeMixin:
         the history row survive -- a paid result must not look lost after a
         restart when it is sitting right there on disk.
         """
-        if self.job().get("state"):
+        if self._has_live_job():
             TripoNode.draw_status(self, layout)
             return
         imgs = self.images()

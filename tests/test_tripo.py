@@ -1861,8 +1861,12 @@ def test_google_preview_survives_restart(api, mock):
         api._jobs.pop(img.job_id, None)
     check("restart: images still resolve via history", bool(img.images()))
     check("restart: node still reports a result", img.has_result())
-    check("google nodes draw the persisted result",
-          "draw_status" in nodes.GoogleNodeMixin.__dict__)
+    # status() reports "unknown" for a forgotten job -- the draw path must
+    # treat that as "no live job" and take the history fallback.
+    check("restart: forgotten job reads as unknown",
+          img.job().get("state") == "unknown", str(img.job().get("state")))
+    check("restart: draw takes the persisted-result path",
+          not img._has_live_job())
     bpy.data.node_groups.remove(ng)
 
 
