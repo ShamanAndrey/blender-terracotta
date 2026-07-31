@@ -660,8 +660,13 @@ def _record(entry):
     key = entry.get("task_id") or entry.get("job")
     with _history_lock:
         try:
+            # Resolve the path exactly once. _history_path is monkeypatched
+            # by the test sandbox; reading it twice let a write that started
+            # against the sandbox finish against the real file -- os.replace
+            # then overwrote the user's entire real history with mock rows.
+            path = _history_path()
             try:
-                with open(_history_path()) as f:
+                with open(path) as f:
                     items = json.load(f)
             except (OSError, ValueError):
                 items = []
@@ -669,10 +674,10 @@ def _record(entry):
                 items = [i for i in items
                          if (i.get("task_id") or i.get("job")) != key]
             items.insert(0, entry)
-            tmp = _history_path() + ".tmp"
+            tmp = path + ".tmp"
             with open(tmp, "w") as f:
                 json.dump(items[:200], f, indent=1)
-            os.replace(tmp, _history_path())
+            os.replace(tmp, path)
             _prune_thumbs(items[:200])
         except OSError as e:
             print(f"[tripo] could not write history: {e!r}")

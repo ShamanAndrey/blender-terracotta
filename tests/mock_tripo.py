@@ -251,6 +251,16 @@ def install():
 def uninstall():
     if not _saved:
         return
+    # Wait for every in-flight job before unpatching: a worker thread still
+    # recording through the sandboxed paths must not have them swapped back
+    # to the user's real files mid-write.
+    import time
+    deadline = time.time() + 10
+    while time.time() < deadline and api.active_jobs():
+        time.sleep(0.05)
+    if api.active_jobs():
+        print("mock_tripo: WARNING -- jobs still active at uninstall:",
+              api.active_jobs())
     api._request = _saved["_request"]
     api._read_key = _saved["_read_key"]
     api.urllib = _saved["urllib"]
