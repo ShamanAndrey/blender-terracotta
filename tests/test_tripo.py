@@ -1843,6 +1843,29 @@ def test_hardening(api, mock):
     bpy.data.node_groups.remove(ng)
 
 
+def test_google_preview_survives_restart(api, mock):
+    section("Google previews survive a restart")
+
+    from tripo_blender import nodes
+    ng = bpy.data.node_groups.new("PreviewGraph", nodes.TREE_ID)
+    img = ng.nodes.new("GoogleImageNode")
+    img.prompt = "preview persistence"
+    bpy.ops.tripo.google_image(node_name=img.name, tree_name=ng.name)
+    deadline = time.time() + 10
+    while time.time() < deadline and \
+            api.status(img.job_id).get("state") not in ("done", "error"):
+        time.sleep(0.05)
+
+    # Simulate a restart: live jobs are gone, only history remains.
+    with api._jobs_lock:
+        api._jobs.pop(img.job_id, None)
+    check("restart: images still resolve via history", bool(img.images()))
+    check("restart: node still reports a result", img.has_result())
+    check("google nodes draw the persisted result",
+          "draw_status" in nodes.GoogleNodeMixin.__dict__)
+    bpy.data.node_groups.remove(ng)
+
+
 def test_view_image(api, mock):
     section("Full-size image viewer")
 
@@ -2065,6 +2088,7 @@ def main():
         test_money_guards(api, mock)
         test_hardening(api, mock)
         test_view_image(api, mock)
+        test_google_preview_survives_restart(api, mock)
         test_lifecycle(api, mock)
         test_new_file_only_setup(api, mock)
     finally:

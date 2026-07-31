@@ -541,6 +541,31 @@ class GoogleNodeMixin:
     def has_result(self):
         return bool(self.images())
 
+    def draw_status(self, layout):
+        """Live job when there is one; otherwise the persisted result.
+
+        The in-memory job dies with the Blender session, but the images and
+        the history row survive -- a paid result must not look lost after a
+        restart when it is sitting right there on disk.
+        """
+        if self.job().get("state"):
+            TripoNode.draw_status(self, layout)
+            return
+        imgs = self.images()
+        primary = imgs.get("generated_image") or imgs.get("front")
+        if not primary:
+            TripoNode.draw_status(self, layout)
+            return
+        icon = previews.icon_id(f"node_{self.job_id}", primary)
+        if icon:
+            layout.template_icon(icon_value=icon,
+                                 scale=max(4.0, self.width / 20.0))
+        row = layout.row()
+        row.label(text="complete", icon="CHECKMARK")
+        op = row.operator("tripo.view_image", text="", icon="ZOOM_IN",
+                          emboss=False)
+        op.path = primary
+
 
 class GoogleImageNode(GoogleNodeMixin, TripoNode, bpy.types.Node):
     """Generate a concept image with Google Gemini.
@@ -676,8 +701,7 @@ class GoogleViewsNode(GoogleNodeMixin, TripoNode, bpy.types.Node):
         layout.prop(self, "model", text="")
         layout.prop(self, "image_size", text="")
 
-        job = self.job()
-        images = job.get("images") or {}
+        images = self.images()   # live job first, then the history row
         if images:
             grid = layout.grid_flow(row_major=True, columns=2, align=True)
             for view in ("front", "left", "back", "right"):
