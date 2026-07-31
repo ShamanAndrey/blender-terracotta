@@ -1,0 +1,25 @@
+# Build artifact -- rebuilt by tools/build_zip.py
+/tripo_blender.zip
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Working scene files and renders from dev sessions live at the repo root;
+# the addon's bundled datablocks (tripo_blender/*.blend) stay tracked.
+/*.blend
+/*.blend1
+/*.png
+
+# Pre-package prototypes, superseded by tripo_blender/. Kept on disk for
+# reference, out of history.
+/tripo.py
+/meshtools.py
+/tripo_panel.py
+
+# Never any key material (keys live in Blender preferences, env vars, or
+# ~/.tripo_key -- never in this repo).
+*.key
