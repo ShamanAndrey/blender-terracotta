@@ -1728,8 +1728,47 @@ def test_hardening(api, mock):
     n = mock.submit_count()
     bpy.ops.tripo.node_process(node_name=post.name, tree_name=ng.name)
     mock.wait_for_submit(n)
-    check("segmentation omits part_names",
-          "part_names" not in mock.last_body(), str(mock.last_body()))
+    body = mock.last_body()
+    url = [u for u, b in mock.calls if b is not None][-1]
+    check("segmentation omits part_names", "part_names" not in body,
+          str(body))
+    check("segmentation uses the v3 route", url.endswith("/mesh/segment"),
+          url)
+    check("segmentation sends the semantic model by default",
+          body.get("model") == "v2.0-20260430", str(body))
+    check("v2 sends granularity",
+          body.get("segmentation_granularity") == "balanced", str(body))
+    check("v2 sends connectivity",
+          body.get("split_by_connectivity") is True, str(body))
+    check("v3 input replaces original_model_task_id",
+          "original_model_task_id" not in body and bool(body.get("input")),
+          str(body))
+    wait_for(api, post.job_id, {"done", "error"})
+    settle(api)
+
+    # v1 geometry model: the v2-only params must not be sent at all.
+    post.seg_model = "v1.0-20250506"
+    post.last_task = ""
+    n = mock.submit_count()
+    bpy.ops.tripo.node_process(node_name=post.name, tree_name=ng.name)
+    mock.wait_for_submit(n)
+    body = mock.last_body()
+    check("v1 omits the v2-only params",
+          "segmentation_granularity" not in body
+          and "split_by_connectivity" not in body, str(body))
+    wait_for(api, post.job_id, {"done", "error"})
+    settle(api)
+
+    # Granularity choice propagates verbatim.
+    post.seg_model = "v2.0-20260430"
+    post.seg_granularity = "detailed"
+    post.last_task = ""
+    n = mock.submit_count()
+    bpy.ops.tripo.node_process(node_name=post.name, tree_name=ng.name)
+    mock.wait_for_submit(n)
+    check("granularity choice propagates",
+          mock.last_body().get("segmentation_granularity") == "detailed",
+          str(mock.last_body()))
     wait_for(api, post.job_id, {"done", "error"})
     settle(api)
 

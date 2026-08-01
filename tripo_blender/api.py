@@ -1126,6 +1126,62 @@ RIG_MODEL_DEFAULT = "v1.0-20240301"      # biped only, per the docs
 RIG_MODEL_CURRENT = "v2.5-20260210"      # required for non-biped rigs
 
 
+def start_segment(source_task_id, model_version="v2.0-20260430",
+                  granularity="balanced", split_by_connectivity=True,
+                  name=None, poll_timeout=1800):
+    """Semantic segmentation via `POST /v3/mesh/segment`. 40 credits.
+
+    The legacy v2 task type only ever ran the v1 geometry model; semantic
+    labeling and granularity exist only on this route. The v2-only params
+    are not sent for the v1 model -- the API says it ignores them, but not
+    sending them beats trusting that.
+
+    `input` as a task id accepts generation tasks only (text/image/multiview
+    to model); segmenting an uploaded or post-processed mesh needs the
+    file/URL input form, which is not wired up yet.
+    """
+    key = _read_key()
+    _ensure_timer()
+
+    body = {"input": source_task_id, "model": model_version}
+    if model_version.startswith("v2"):
+        body["segmentation_granularity"] = granularity
+        body["split_by_connectivity"] = bool(split_by_connectivity)
+
+    job_id = uuid.uuid4().hex[:12]
+    with _jobs_lock:
+        _jobs[job_id] = {"job": job_id, "state": "submitting",
+                         "kind": "mesh_segmentation",
+                         "prompt": "mesh_segmentation", "name": name,
+                         "source": source_task_id}
+
+    def work():
+        def note(**kw):
+            with _jobs_lock:
+                _jobs[job_id].update(kw)
+        try:
+            resp = _request(f"{V3_BASE}/mesh/segment", key, body)
+            if resp.get("code") not in (0, None):
+                note(state="error", message=f"Submit failed: {resp}")
+                return
+            task_id = (resp.get("data") or {}).get("task_id")
+            if not task_id:
+                note(state="error", message=f"no task_id: {resp}")
+                return
+            note(task_id=task_id, flavor="v3", state="running")
+            _record({"task_id": task_id, "job": job_id,
+                     "kind": "mesh_segmentation", "name": name,
+                     "model": model_version, "flavor": "v3",
+                     "time": int(time.time())})
+        except Exception as e:
+            note(state="error", message=str(e))
+            return
+        _poll_and_import(job_id, "v3", task_id, key, name, poll_timeout, note)
+
+    threading.Thread(target=work, daemon=True).start()
+    return job_id
+
+
 def start_prerig_check(source_task_id, name=None, poll_timeout=600):
     """Ask whether a model can be rigged. Free.
 

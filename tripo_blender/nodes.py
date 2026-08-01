@@ -764,6 +764,24 @@ class TripoPostNode(TripoNode, bpy.types.Node):
     # result under a "Retopology" header misleads.
     last_operation: bpy.props.StringProperty()
 
+    seg_model: bpy.props.EnumProperty(
+        name="Segmentation model",
+        items=[("v2.0-20260430", "v2 semantic (Beta)",
+                "Semantic labeling with granularity control -- understands "
+                "boundaries like armor vs body"),
+               ("v1.0-20250506", "v1 geometry",
+                "Geometry-based split, no granularity control")],
+        default="v2.0-20260430")
+    seg_granularity: bpy.props.EnumProperty(
+        name="Granularity",
+        items=[("simple", "Simple", "3-6 major parts"),
+               ("balanced", "Balanced", "6-15 parts"),
+               ("detailed", "Detailed", "15+ parts")],
+        default="balanced")
+    seg_connectivity: bpy.props.BoolProperty(
+        name="Split by connectivity", default=True,
+        description="Also split parts that aren't physically connected")
+
     face_limit: bpy.props.IntProperty(name="Faces", default=4000, min=500,
                                       max=20000)
     quad: bpy.props.BoolProperty(name="Quad mesh")
@@ -802,6 +820,17 @@ class TripoPostNode(TripoNode, bpy.types.Node):
         elif self.operation == "texture_model":
             layout.prop(self, "texture_quality", text="")
             layout.prop(self, "part_names", text="Parts")
+        elif self.operation == "mesh_segmentation":
+            layout.prop(self, "seg_model", text="")
+            if self.seg_model.startswith("v2"):
+                layout.prop(self, "seg_granularity", text="")
+                layout.prop(self, "seg_connectivity")
+            up = _upstream_node(self)
+            if up is not None and up.bl_idname in ("TripoSourceNode",
+                                                   "TripoPostNode"):
+                box = layout.box()
+                box.label(text="Segment takes generated models", icon="INFO")
+                box.label(text="Uploads/processed meshes may be rejected")
         elif self.operation == "mesh_completion":
             layout.prop(self, "part_names", text="Parts")
         elif self.operation == "stylize_model":

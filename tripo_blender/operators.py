@@ -359,12 +359,23 @@ class TRIPO_OT_node_process(bpy.types.Operator):
                 extra["block_size"] = node.block_size
 
         try:
-            node.job_id = api.start_post(
-                node.operation, src,
-                name=node.operation.split("_")[0],
-                part_names=parts or None,
-                **extra,
-            )
+            if node.operation == "mesh_segmentation":
+                # Deterministic v3 route: the legacy v2 task type only ever
+                # ran the v1 geometry model, with no granularity control.
+                node.job_id = api.start_segment(
+                    src,
+                    model_version=node.seg_model,
+                    granularity=node.seg_granularity,
+                    split_by_connectivity=node.seg_connectivity,
+                    name="segment",
+                )
+            else:
+                node.job_id = api.start_post(
+                    node.operation, src,
+                    name=node.operation.split("_")[0],
+                    part_names=parts or None,
+                    **extra,
+                )
         except Exception as e:
             self.report({"ERROR"}, str(e))
             return {"CANCELLED"}
