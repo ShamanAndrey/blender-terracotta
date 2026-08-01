@@ -248,6 +248,30 @@ and armor"), `transform` (16 floats, required for model). Output includes
 - Rig price **measured 25 on the v3 route** -- the doc example's 30 is
   wrong; our quote stands.
 
+### Texture (`POST /v3/models/texture`) -- 10 cr + quality step
+`input`; `model` v3.0 default (v2.5 for v2.5-generated models);
+`texture_prompt` {text [+ style_image] | image | images[4]} -- text is
+creative retexturing; `pbr`, `texture_seed`, `texture_alignment`,
+`texture_quality` (incl. extreme), `part_names` (from a segment task),
+`compress`, `bake`.
+
+### Retopology (`POST /v3/mesh/decimate`)
+`model` **v2.0 = smart retopo, 30 cr; v1.0 = basic decimation, 10 cr**
+(cheap tier). face_limit 500-20,000 tri / 500-10,000 quad, adaptive if
+omitted; `quad` both tiers; `bake` and `part_names` v2.0-only. Output GLB.
+
+### Convert (`POST /v3/models/convert`)
+`input` + `format` GLTF/FBX/USDZ/OBJ/STL/3MF; texture_size (default 4096) /
+texture_format (JPEG default, PNG, WEBP, ...), bake, pack_uv,
+export_vertex_colors (OBJ/GLTF), pivot_to_center_bottom, flatten_bottom
+(+threshold), force_symmetry (quad only), scale_factor, with_animation,
+animate_in_place, part_names, export_orientation (+x default),
+fbx_preset blender|3dsmax|mixamo. Legacy +5-per-extra pricing unverified
+on v3.
+
+**stylize_model has NO v3 route** -- legacy v2 generic endpoint only;
+possibly headed for retirement. Quoted 0 cr (unverified).
+
 ### Mesh completion (`POST /v3/mesh/complete`)
 `input` = a mesh/segment task id; `part_names` (omit = all parts);
 `completion_mode`: `ai_completion` (default) | `quick_cap` (fast hole-fill).

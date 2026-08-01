@@ -855,6 +855,14 @@ class TripoPostNode(TripoNode, bpy.types.Node):
     face_limit: bpy.props.IntProperty(name="Faces", default=4000, min=500,
                                       max=20000)
     quad: bpy.props.BoolProperty(name="Quad mesh")
+    retopo_model: bpy.props.EnumProperty(
+        name="Algorithm", items=costs.RETOPO_ITEMS, default="v2.0")
+    completion_mode: bpy.props.EnumProperty(
+        name="Mode", items=costs.COMPLETION_ITEMS, default="ai_completion")
+    texture_prompt: bpy.props.StringProperty(
+        name="Texture prompt",
+        description="Describe the new look ('worn leather with scratches'). "
+                    "Blank retextures from the model itself")
     texture_quality: bpy.props.EnumProperty(
         name="Quality", items=costs.TEXTURE_QUALITY_ITEMS, default="standard")
     part_names: bpy.props.StringProperty(
@@ -870,6 +878,8 @@ class TripoPostNode(TripoNode, bpy.types.Node):
 
     def cost(self):
         base = costs.POST.get(self.operation, 0)
+        if self.operation == "highpoly_to_lowpoly":
+            base = costs.RETOPO_COST.get(self.retopo_model, base)
         if self.operation == "texture_model":
             base += costs._TEXTURE_STEP.get(self.texture_quality, 0)
         return base
@@ -885,9 +895,11 @@ class TripoPostNode(TripoNode, bpy.types.Node):
         layout.prop(self, "operation", text="")
 
         if self.operation == "highpoly_to_lowpoly":
+            layout.prop(self, "retopo_model", text="")
             layout.prop(self, "face_limit")
             layout.prop(self, "quad")
         elif self.operation == "texture_model":
+            layout.prop(self, "texture_prompt", text="")
             layout.prop(self, "texture_quality", text="")
             layout.prop(self, "part_names", text="Parts")
         elif self.operation == "mesh_segmentation":
@@ -902,11 +914,13 @@ class TripoPostNode(TripoNode, bpy.types.Node):
                 box.label(text="Segment takes generated models", icon="INFO")
                 box.label(text="Uploads/processed meshes may be rejected")
         elif self.operation == "mesh_completion":
+            layout.prop(self, "completion_mode", text="")
             layout.prop(self, "part_names", text="Parts")
         elif self.operation == "stylize_model":
             layout.prop(self, "style", text="")
             if self.style == "minecraft":
                 layout.prop(self, "block_size")
+            layout.label(text="Legacy route -- may be retired", icon="INFO")
 
         if not self.upstream_task():
             layout.label(text="Connect a finished asset", icon="ERROR")

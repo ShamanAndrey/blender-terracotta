@@ -179,21 +179,45 @@ def test_post_chaining(api, mock):
     section("Post-processing chaining")
 
     n = mock.submit_count()
-    api.start_post("highpoly_to_lowpoly", "task-source-123", face_limit=4000)
+    api.start_decimate("task-source-123", face_limit=4000)
     mock.wait_for_submit(n)
     body = mock.last_body()
-    check("chain sets original_model_task_id from upstream",
-          body.get("original_model_task_id") == "task-source-123", str(body))
-    check("chain sets the operation type",
-          body.get("type") == "highpoly_to_lowpoly", str(body))
+    url = [u for u, b in mock.calls if b is not None][-1]
+    check("retopo uses the v3 decimate route", url.endswith("/mesh/decimate"),
+          url)
+    check("chain sets input from upstream",
+          body.get("input") == "task-source-123", str(body))
+    check("smart tier is the default", body.get("model") == "v2.0", str(body))
     check("chain passes face_limit", body.get("face_limit") == 4000, str(body))
 
     n = mock.submit_count()
-    api.start_post("texture_model", "task-source-123", part_names=["seat", "leg"])
+    api.start_decimate("task-source-123", model_version="v1.0",
+                       face_limit=3000, part_names=["seat"])
     mock.wait_for_submit(n)
     body = mock.last_body()
+    check("basic tier omits its unsupported part_names",
+          body.get("model") == "v1.0" and "part_names" not in body, str(body))
+
+    n = mock.submit_count()
+    api.start_texture("task-source-123", text_prompt="worn leather",
+                      part_names=["seat", "leg"])
+    mock.wait_for_submit(n)
+    body = mock.last_body()
+    url = [u for u, b in mock.calls if b is not None][-1]
+    check("texture uses the v3 route", url.endswith("/models/texture"), url)
+    check("texture prompt travels as an object",
+          body.get("texture_prompt") == {"text": "worn leather"}, str(body))
     check("texture_model forwards part_names",
           body.get("part_names") == ["seat", "leg"], str(body))
+
+    n = mock.submit_count()
+    api.start_complete("task-seg-1", completion_mode="quick_cap")
+    mock.wait_for_submit(n)
+    body = mock.last_body()
+    url = [u for u, b in mock.calls if b is not None][-1]
+    check("completion uses the v3 route", url.endswith("/mesh/complete"), url)
+    check("quick cap mode travels",
+          body.get("completion_mode") == "quick_cap", str(body))
 
     settle(api)
 
@@ -533,10 +557,11 @@ def test_export(api, mock):
     mock.wait_for_submit(n)
     body = mock.last_body()
 
-    check("convert task type", body.get("type") == "convert_model", str(body))
+    url = [u for u, b in mock.calls if b is not None][-1]
+    check("convert uses the v3 route", url.endswith("/models/convert"), url)
     check("format forwarded", body.get("format") == "FBX", str(body))
     check("chains from the upstream task",
-          body.get("original_model_task_id") == gen.task_id(), str(body))
+          body.get("input") == gen.task_id(), str(body))
     check("quad forwarded", body.get("quad") is True, str(body))
     check("face_limit forwarded", body.get("face_limit") == 5000, str(body))
     check("pivot option forwarded",
@@ -590,8 +615,8 @@ def test_export(api, mock):
     bpy.ops.tripo.node_export(node_name=plain.name, tree_name=plain.id_data.name)
     mock.wait_for_submit(n)
     body = mock.last_body()
-    check("default export sends only type/source/format",
-          set(body) <= {"type", "original_model_task_id", "format"}, str(body))
+    check("default export sends only input and format",
+          set(body) <= {"input", "format"}, str(body))
 
     plain.pivot_to_center_bottom = True
     check("adding an option quotes 10", plain.cost() == 10, str(plain.cost()))
@@ -1739,6 +1764,44 @@ def test_panel_retirement(api, mock):
     bpy.data.node_groups.remove(ng)
 
 
+def test_run_graph_quote(api, mock):
+    section("Run Graph cost quote")
+
+    from tripo_blender import nodes, runner
+
+    ng = bpy.data.node_groups.new("QuoteGraph", nodes.TREE_ID)
+    img = ng.nodes.new("GoogleImageNode")
+    img.prompt = "concept"
+    gen = ng.nodes.new("TripoGenerateNode")
+    gen.mode = "IMAGE"
+    ng.links.new(img.outputs[0], gen.inputs[0])
+    post = ng.nodes.new("TripoPostNode")
+    post.operation = "mesh_segmentation"
+    ng.links.new(gen.outputs["Asset"], post.inputs["Asset"])
+    imp = ng.nodes.new("TripoImportNode")
+    ng.links.new(post.outputs["Asset"], imp.inputs["Asset"])
+
+    op = runner.TRIPO_OT_run_graph
+    order, lines = op._quote(op, ng)
+    by_name = {n: (c, u) for n, c, u in lines}
+    check("quote covers every pending node", len(lines) == 4,
+          str([n for n, _, _ in lines]))
+    check("google node quoted in dollars",
+          by_name[img.name][1] > 0 and by_name[img.name][0] == 0,
+          str(by_name[img.name]))
+    check("generate quoted in credits",
+          by_name[gen.name][0] == gen.cost(), str(by_name[gen.name]))
+    check("segmentation quoted", by_name[post.name][0] == 40)
+
+    # Nodes with results drop out of the quote.
+    gen.last_task = "task-quote-done"
+    order, lines = op._quote(op, ng)
+    check("finished nodes are not re-quoted",
+          gen.name not in [n for n, _, _ in lines],
+          str([n for n, _, _ in lines]))
+    bpy.data.node_groups.remove(ng)
+
+
 def test_hardening(api, mock):
     section("Hardening")
 
@@ -2358,6 +2421,7 @@ def main():
         test_recover_and_prune(api, mock)
         test_money_guards(api, mock)
         test_model_capability_matrix(api, mock)
+        test_run_graph_quote(api, mock)
         test_hardening(api, mock)
         test_view_image(api, mock)
         test_google_preview_survives_restart(api, mock)

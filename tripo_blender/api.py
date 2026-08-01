@@ -1213,14 +1213,14 @@ def start_segment(source_task_id, model_version="v2.0-20260430",
     return job_id
 
 
-def _start_v3_task(route, body, kind, name, poll_timeout):
+def _start_v3_task(route, body, kind, name, poll_timeout, save_to=None):
     """Submit a v3 task and poll it through download/import."""
     key = _read_key()
     _ensure_timer()
     job_id = uuid.uuid4().hex[:12]
     with _jobs_lock:
         _jobs[job_id] = {"job": job_id, "state": "submitting", "kind": kind,
-                         "prompt": kind, "name": name,
+                         "prompt": kind, "name": name, "save_to": save_to,
                          "source": body.get("input")}
 
     def work():
@@ -1242,10 +1242,83 @@ def _start_v3_task(route, body, kind, name, poll_timeout):
         except Exception as e:
             note(state="error", message=str(e))
             return
-        _poll_and_import(job_id, "v3", task_id, key, name, poll_timeout, note)
+        _poll_and_import(job_id, "v3", task_id, key, name, poll_timeout, note,
+                         save_to=save_to)
 
     threading.Thread(target=work, daemon=True).start()
     return job_id
+
+
+def start_texture(source_task_id, text_prompt=None, texture_quality="standard",
+                  part_names=None, name=None, poll_timeout=1800):
+    """Retexture a model via POST /v3/models/texture. 10 credits + quality.
+
+    text_prompt makes it creative retexturing ("worn leather with
+    scratches"); omitted, Tripo retextures from the model itself.
+    """
+    body = {"input": source_task_id}
+    if text_prompt and text_prompt.strip():
+        body["texture_prompt"] = {"text": text_prompt.strip()[:255]}
+    if texture_quality != "standard":
+        body["texture_quality"] = texture_quality
+    if part_names:
+        body["part_names"] = list(part_names)
+    return _start_v3_task("models/texture", body, "texture_model",
+                          name or "texture", poll_timeout)
+
+
+# Retopology algorithm tiers on /v3/mesh/decimate.
+DECIMATE_MODELS = ("v2.0", "v1.0")
+
+
+def start_decimate(source_task_id, model_version="v2.0", face_limit=None,
+                   quad=False, part_names=None, name=None, poll_timeout=1800):
+    """Retopologize via POST /v3/mesh/decimate.
+
+    v2.0 = smart retopology (30 cr); v1.0 = basic decimation (10 cr).
+    bake and part_names are v2.0-only per the docs.
+    """
+    if model_version not in DECIMATE_MODELS:
+        raise ValueError(f"Unknown retopology model '{model_version}'")
+    body = {"input": source_task_id, "model": model_version}
+    if face_limit:
+        body["face_limit"] = int(face_limit)
+    if quad:
+        body["quad"] = True
+    if part_names and model_version == "v2.0":
+        body["part_names"] = list(part_names)
+    return _start_v3_task("mesh/decimate", body, "highpoly_to_lowpoly",
+                          name or "retopo", poll_timeout)
+
+
+def start_complete(segment_task_id, part_names=None,
+                   completion_mode="ai_completion", name=None,
+                   poll_timeout=1800):
+    """Complete segmented parts via POST /v3/mesh/complete."""
+    if completion_mode not in ("ai_completion", "quick_cap"):
+        raise ValueError(f"Unknown completion mode '{completion_mode}'")
+    body = {"input": segment_task_id}
+    if part_names:
+        body["part_names"] = list(part_names)
+    if completion_mode != "ai_completion":
+        body["completion_mode"] = completion_mode
+    return _start_v3_task("mesh/complete", body, "mesh_completion",
+                          name or "complete", poll_timeout)
+
+
+def start_convert(source_task_id, fmt, save_to=None, name=None,
+                  poll_timeout=1800, **extra):
+    """Convert format via POST /v3/models/convert.
+
+    Only changed values should arrive in `extra` -- the legacy route billed
+    +5 for any parameter beyond format, and v3 pricing is unverified.
+    """
+    body = {"input": source_task_id, "format": fmt}
+    for k, v in (extra or {}).items():
+        if v is not None:
+            body[k] = v
+    return _start_v3_task("models/convert", body, "convert_model",
+                          name or "convert", poll_timeout, save_to=save_to)
 
 
 def start_prerig_check(source_task_id, name=None, poll_timeout=600):

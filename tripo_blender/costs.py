@@ -50,6 +50,22 @@ POST = {
     "stylize_model": 0,      # priced with the source task
 }
 
+# Retopology algorithm tiers (v3 mesh/decimate, doc prices).
+RETOPO_COST = {"v2.0": 30, "v1.0": 10}
+RETOPO_ITEMS = [
+    ("v2.0", "Smart retopo (30 cr)",
+     "P-series AI rebuild: clean topology, edge preservation"),
+    ("v1.0", "Basic decimate (10 cr)",
+     "Plain polycount reduction. No bake, no part selection"),
+]
+
+COMPLETION_ITEMS = [
+    ("ai_completion", "AI completion",
+     "Diffusion-generated geometry fills missing regions"),
+    ("quick_cap", "Quick cap",
+     "Fast hole-sealing without AI. Price unverified -- likely cheaper"),
+]
+
 # Step up from standard texture quality; standard is already in the base price.
 _TEXTURE_STEP = {"standard": 0, "detailed": 10, "extreme": 20}
 

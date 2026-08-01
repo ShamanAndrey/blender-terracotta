@@ -381,8 +381,6 @@ class TRIPO_OT_node_process(bpy.types.Operator):
 
         try:
             if node.operation == "mesh_segmentation":
-                # Deterministic v3 route: the legacy v2 task type only ever
-                # ran the v1 geometry model, with no granularity control.
                 node.job_id = api.start_segment(
                     src,
                     model_version=node.seg_model,
@@ -390,7 +388,30 @@ class TRIPO_OT_node_process(bpy.types.Operator):
                     split_by_connectivity=node.seg_connectivity,
                     name="segment",
                 )
+            elif node.operation == "highpoly_to_lowpoly":
+                node.job_id = api.start_decimate(
+                    src,
+                    model_version=node.retopo_model,
+                    face_limit=node.face_limit,
+                    quad=node.quad,
+                    part_names=parts or None,
+                )
+            elif node.operation == "texture_model":
+                node.job_id = api.start_texture(
+                    src,
+                    text_prompt=node.texture_prompt,
+                    texture_quality=node.texture_quality,
+                    part_names=parts or None,
+                )
+            elif node.operation == "mesh_completion":
+                node.job_id = api.start_complete(
+                    src,
+                    part_names=parts or None,
+                    completion_mode=node.completion_mode,
+                )
             else:
+                # stylize only -- it has no v3 route; the legacy generic
+                # task endpoint is the only place it exists.
                 node.job_id = api.start_post(
                     node.operation, src,
                     name=node.operation.split("_")[0],
@@ -524,7 +545,7 @@ class TRIPO_OT_node_export(bpy.types.Operator):
         # Conversion is 5 credits, +5 if ANY additional parameter is sent.
         # Only send values the user actually changed, or every export pays the
         # surcharge for defaults it never asked for.
-        extra = {"format": node.fmt}
+        extra = {}   # format goes positionally; extras are only-if-changed
         if abs(node.scale_factor - 1.0) > 1e-6:
             extra["scale_factor"] = node.scale_factor
         if node.export_orientation != "+x":
@@ -554,8 +575,8 @@ class TRIPO_OT_node_export(bpy.types.Operator):
         parts = [p.strip() for p in node.part_names.split(",") if p.strip()]
 
         try:
-            node.job_id = api.start_post(
-                "convert_model", src,
+            node.job_id = api.start_convert(
+                src, node.fmt,
                 name=node.filename.strip() or "asset",
                 part_names=parts or None,
                 save_to=directory,

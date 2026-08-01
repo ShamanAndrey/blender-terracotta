@@ -89,14 +89,36 @@ class TRIPO_OT_run_graph(bpy.types.Operator):
         tree = getattr(space, "edit_tree", None)
         return tree is not None and tree.bl_idname == nodes.TREE_ID
 
-    def execute(self, context):
-        return self.invoke(context, None)
+    def _quote(self, tree):
+        """(order, [(name, credits, usd), ...]) for nodes that would run."""
+        order = _graph_order(tree)
+        lines = []
+        for node in order:
+            if node.bl_idname not in _NODE_OPS:
+                continue
+            has = getattr(node, "has_result", None)
+            if callable(has) and has():
+                continue
+            busy = getattr(node, "is_busy", None)
+            if callable(busy) and busy():
+                continue
+            cost = getattr(node, "cost", None)
+            usd = getattr(node, "cost_usd", None)
+            lines.append((node.name,
+                          cost() if callable(cost) else 0,
+                          usd() if callable(usd) else 0.0))
+        return order, lines
 
-    def invoke(self, context, event):
+    def execute(self, context):
+        # Reached from the dialog's OK, or directly from scripts/tests.
         if TRIPO_OT_run_graph._running:
             self.report({"WARNING"}, "Run Graph is already running")
             return {"CANCELLED"}
-        tree = context.space_data.edit_tree
+        tree = bpy.data.node_groups.get(getattr(self, "_tree", "") or "") or \
+            getattr(context.space_data, "edit_tree", None)
+        if tree is None:
+            self.report({"ERROR"}, "No Tripo node tree in view")
+            return {"CANCELLED"}
         try:
             order = _graph_order(tree)
         except ValueError as e:
@@ -117,6 +139,54 @@ class TRIPO_OT_run_graph(bpy.types.Operator):
         wm.modal_handler_add(self)
         self.report({"INFO"}, f"Running {len(self._queue)} nodes")
         return {"RUNNING_MODAL"}
+
+    def invoke(self, context, event):
+        """Quote the whole chain before anything is billed.
+
+        Every button prices itself, but nobody added up the chain -- and
+        the chain is where surprise spend lives.
+        """
+        if TRIPO_OT_run_graph._running:
+            self.report({"WARNING"}, "Run Graph is already running")
+            return {"CANCELLED"}
+        tree = context.space_data.edit_tree
+        try:
+            order, lines = self._quote(tree)
+        except ValueError as e:
+            self.report({"ERROR"}, str(e))
+            return {"CANCELLED"}
+        if not order:
+            self.report({"WARNING"}, "Nothing to run")
+            return {"CANCELLED"}
+        if not lines:
+            self.report({"INFO"},
+                        "Every node already has a result -- nothing to pay "
+                        "for. Node buttons force re-runs")
+            return {"CANCELLED"}
+        self._lines = lines
+        self._tree = tree.name
+        return context.window_manager.invoke_props_dialog(self, width=340)
+
+    def draw(self, context):
+        col = self.layout.column()
+        col.label(text=f"{len(self._lines)} node(s) will run:")
+        for name, credits, usd in self._lines:
+            tags = []
+            if credits:
+                tags.append(f"{credits} cr")
+            if usd:
+                tags.append(f"${usd:.2f}")
+            col.label(text=f"    {name}  -  {' + '.join(tags) or 'free'}")
+        total_cr = sum(c for _, c, _ in self._lines)
+        total_usd = sum(u for _, _, u in self._lines)
+        parts = []
+        if total_cr:
+            parts.append(f"~{total_cr} credits")
+        if total_usd:
+            parts.append(f"~${total_usd:.2f}")
+        col.separator()
+        col.label(text="Total: " + (" + ".join(parts) or "free"),
+                  icon="FUND")
 
     def _node(self, name):
         tree = bpy.data.node_groups.get(self._tree)
