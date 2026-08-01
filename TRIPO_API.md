@@ -269,8 +269,9 @@ animate_in_place, part_names, export_orientation (+x default),
 fbx_preset blender|3dsmax|mixamo. Legacy +5-per-extra pricing unverified
 on v3.
 
-**stylize_model has NO v3 route** -- legacy v2 generic endpoint only;
-possibly headed for retirement. Quoted 0 cr (unverified).
+**stylize_model has NO v3 route** and was retired from the addon
+(2026-08-02): the node enum keeps a stub entry so saved files stay
+intact, but running it refuses.
 
 ### Mesh completion (`POST /v3/mesh/complete`)
 `input` = a mesh/segment task id; `part_names` (omit = all parts);

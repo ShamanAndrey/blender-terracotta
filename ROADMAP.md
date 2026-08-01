@@ -1,4 +1,4 @@
-# Roadmap
+# Kiln — Roadmap
 
 **Goal:** an AssetHub-class AI asset pipeline that lives entirely inside
 Blender — concept image through finished, placed, animated asset, without
@@ -46,8 +46,6 @@ resold compute, inherited support surface, abuse running under our key
   P1 multiview.
 - **v3 file upload** (`POST /v3/files`) — unlocks segmentation `ref_image`
   masks and image-guided texture prompts.
-- **Stylize decision**: no v3 route exists; verify the legacy one or remove
-  the operation.
 - Payload migration to the documented `input`/`inputs` shapes when the
   legacy shape stops working.
 - Packaging leftovers: `.mcp.json` hardcodes an absolute `uvx` path;

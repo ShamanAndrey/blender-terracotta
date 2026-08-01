@@ -857,7 +857,8 @@ class TripoPostNode(TripoNode, bpy.types.Node):
             ("texture_model", "Texture", "Generate textures"),
             ("mesh_segmentation", "Segment", "Split into named parts"),
             ("mesh_completion", "Complete parts", "Fill gaps in segmented parts"),
-            ("stylize_model", "Stylize", "Lego, voxel, voronoi or minecraft"),
+            ("stylize_model", "Stylize (retired)",
+             "Removed from the API; kept so old files stay intact"),
         ],
         default="highpoly_to_lowpoly")
     # Which operation made the stored result -- showing a segmentation
@@ -947,12 +948,17 @@ class TripoPostNode(TripoNode, bpy.types.Node):
             layout.prop(self, "completion_mode", text="")
             layout.prop(self, "part_names", text="Parts")
         elif self.operation == "stylize_model":
-            layout.prop(self, "style", text="")
-            if self.style == "minecraft":
-                layout.prop(self, "block_size")
-            layout.label(text="Legacy route -- may be retired", icon="INFO")
+            # Retired: no v3 route exists and the legacy one is unverified.
+            # The enum entry stays so nodes saved with it selected keep
+            # their identity instead of silently becoming retopology.
+            box = layout.box()
+            box.alert = True
+            box.label(text="Stylize was retired", icon="ERROR")
+            box.label(text="Pick another operation")
 
-        if not self.upstream_task():
+        if self.operation == "stylize_model":
+            pass
+        elif not self.upstream_task():
             layout.label(text="Connect a finished asset", icon="ERROR")
         else:
             row = self.action_row(layout)

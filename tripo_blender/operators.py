@@ -411,14 +411,12 @@ class TRIPO_OT_node_process(bpy.types.Operator):
                     completion_mode=node.completion_mode,
                 )
             else:
-                # stylize only -- it has no v3 route; the legacy generic
-                # task endpoint is the only place it exists.
-                node.job_id = api.start_post(
-                    node.operation, src,
-                    name=node.operation.split("_")[0],
-                    part_names=parts or None,
-                    **extra,
-                )
+                # stylize_model: retired. No v3 route exists, the legacy
+                # one is unverified, and probing a possibly-dead endpoint
+                # costs real money.
+                self.report({"ERROR"},
+                            "Stylize was retired -- pick another operation")
+                return {"CANCELLED"}
         except Exception as e:
             self.report({"ERROR"}, str(e))
             return {"CANCELLED"}

@@ -1946,6 +1946,18 @@ def test_hardening(api, mock):
     check("quad face limit over 10k is rejected", rejected)
     check("no quad task submitted", mock.submit_count() == n)
 
+    # Stylize is retired: the enum entry survives (saved files keep their
+    # identity) but running it must refuse, unbilled.
+    post.operation = "stylize_model"
+    n = mock.submit_count()
+    try:
+        bpy.ops.tripo.node_process(node_name=post.name, tree_name=ng.name)
+        refused = False
+    except RuntimeError as e:
+        refused = "retired" in str(e)
+    check("stylize refuses to run", refused)
+    check("stylize submitted nothing", mock.submit_count() == n)
+
     # Segmentation takes no part_names in any API version -- typing parts
     # into the field must not leak an undocumented param onto a billed task.
     post.quad = False
