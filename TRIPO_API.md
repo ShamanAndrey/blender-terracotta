@@ -166,16 +166,42 @@ need `model_version >= v2.0-20240919`; `geometry_quality` needs `>= v3.0`.
 | `refine_model` | `draft_model_task_id` |
 | `animate_rig` / `animate_retarget` | `rig_type`, `spec` mixamo\|tripo, animation presets |
 
-### Segmentation granularity
-The v2 `mesh_segmentation` has **no part-count parameter**. The granularity
-control the web UI exposes lives on the v3 route (from SDK source):
-```
-POST /v3/mesh/segment
-{ "type":"mesh_segmentation", "model":"v2.0-20260430", "input":"<task_id>",
-  "segmentation_granularity":"simple|balanced|detailed",
-  "ref_image":"file_<uuid>", "split_by_connectivity":true }
-```
-Note `/mesh/segment`, **not** `/mesh/segmentation`. Untested.
+### v3 post-processing routes (from developers.tripo3d.ai, read 2026-08-01)
+v3 now has the full post-processing surface -- the "v2 only" note above is
+historical. Routes: `/v3/models/texture`, `/v3/models/convert`,
+`/v3/mesh/segment`, `/v3/mesh/complete`, `/v3/mesh/decimate` (retopology),
+`/v3/animations/rig-check|rig|retarget`, `POST /v3/files` (upload),
+`POST /v3/tasks/list` (batch query, **requires known ids** -- max 100; not a
+listing endpoint, there is still no way to enumerate past tasks).
+
+### Segmentation (`POST /v3/mesh/segment`) -- 40 credits (doc example)
+- `input` (required): exactly one of task_id | file_token | URL.
+  As task_id it accepts only **generation** tasks (text/image/multiview);
+  to segment a retopoed or imported mesh, pass its file/URL instead.
+  Formats GLB/GLTF/FBX/OBJ/STL, max 150 MB.
+- `model`: `v1.0-20250506` (default, geometry-based) or `v2.0-20260430`
+  (Beta, semantic labeling). The v2-only params below are ignored on v1.
+- `segmentation_granularity`: simple (3-6 parts) | balanced (default, 6-15)
+  | detailed (15+).
+- `split_by_connectivity`: bool, default true.
+- `ref_image`: optional file_token/URL segmentation mask; when set,
+  granularity and connectivity are **ignored**.
+- **No `part_names` parameter** in any version -- we used to send it; don't.
+
+### Smart Segmentation (`POST /v3/mesh/smartsegment`) -- 85 cr (doc example)
+End-to-end pipeline that includes auto-modeling (image or GLB in), so it is
+NOT the tool for segmenting an existing generated model. `seg_type`
+image|model, `granularity` coarse|medium|fine (different vocabulary from
+mesh/segment!), free-text `hint` (doc example: "game character with sword
+and armor"), `transform` (16 floats, required for model). Output includes
+`seg_task_id` + `model_task_id`.
+
+### Mesh completion (`POST /v3/mesh/complete`)
+`input` = a mesh/segment task id; `part_names` (omit = all parts);
+`completion_mode`: `ai_completion` (default) | `quick_cap` (fast hole-fill).
+Doc example shows `credits_consumed: 100` but its result `type` field says
+text_to_model -- the example looks copy-pasted, so the price is unverified;
+our measured 50 may be stale. Verify before quoting.
 
 ## Changelog notes (from /docs/changelog)
 

@@ -337,6 +337,11 @@ class TRIPO_OT_node_process(bpy.types.Operator):
             self.report({"ERROR"}, "Upstream asset isn't finished yet")
             return {"CANCELLED"}
         parts = [p.strip() for p in node.part_names.split(",") if p.strip()]
+        # part_names is a parameter of completion/texture/retopo only --
+        # mesh_segmentation and stylize don't take it in any API version,
+        # and undocumented fields on a billed task are a risk, not a no-op.
+        if node.operation in ("mesh_segmentation", "stylize_model"):
+            parts = []
         extra = {}
         if node.operation == "highpoly_to_lowpoly":
             if node.quad and node.face_limit > 10000:

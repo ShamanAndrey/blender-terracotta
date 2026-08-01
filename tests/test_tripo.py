@@ -1720,8 +1720,22 @@ def test_hardening(api, mock):
     check("quad face limit over 10k is rejected", rejected)
     check("no quad task submitted", mock.submit_count() == n)
 
-    # A forced re-run clears the stale result so nothing chains off it.
+    # Segmentation takes no part_names in any API version -- typing parts
+    # into the field must not leak an undocumented param onto a billed task.
     post.quad = False
+    post.operation = "mesh_segmentation"
+    post.part_names = "armor, body"
+    n = mock.submit_count()
+    bpy.ops.tripo.node_process(node_name=post.name, tree_name=ng.name)
+    mock.wait_for_submit(n)
+    check("segmentation omits part_names",
+          "part_names" not in mock.last_body(), str(mock.last_body()))
+    wait_for(api, post.job_id, {"done", "error"})
+    settle(api)
+
+    # A forced re-run clears the stale result so nothing chains off it.
+    post.operation = "highpoly_to_lowpoly"
+    post.part_names = ""
     post.face_limit = 4000
     post.last_task = "stale-old-task"
     bpy.ops.tripo.node_process(node_name=post.name, tree_name=ng.name)
