@@ -187,6 +187,10 @@ listing endpoint, there is still no way to enumerate past tasks).
 - `ref_image`: optional file_token/URL segmentation mask; when set,
   granularity and connectivity are **ignored**.
 - **No `part_names` parameter** in any version -- we used to send it; don't.
+- **v2 output carries no labels** (measured 2026-08-01): the glb parts come
+  back as anonymous `tripo_part_N` with empty extras -- "semantic" means
+  where it cuts, not named parts. Labeled output (`head, body, ...`) exists
+  only on the smartsegment pipeline.
 
 ### Smart Segmentation (`POST /v3/mesh/smartsegment`) -- 85 cr (doc example)
 End-to-end pipeline that includes auto-modeling (image or GLB in), so it is
