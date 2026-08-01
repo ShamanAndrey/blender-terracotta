@@ -1176,7 +1176,10 @@ def start_segment(source_task_id, model_version="v2.0-20260430",
         except Exception as e:
             note(state="error", message=str(e))
             return
-        _poll_and_import(job_id, "v3", task_id, key, name, poll_timeout, note)
+        # Import with no rename: the part names inside the glb ARE the
+        # semantic labels (head, torso, armor...) -- renaming them to
+        # segment_1..N would destroy what the semantic model is paid for.
+        _poll_and_import(job_id, "v3", task_id, key, None, poll_timeout, note)
 
     threading.Thread(target=work, daemon=True).start()
     return job_id

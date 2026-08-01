@@ -1769,7 +1769,13 @@ def test_hardening(api, mock):
     check("granularity choice propagates",
           mock.last_body().get("segmentation_granularity") == "detailed",
           str(mock.last_body()))
-    wait_for(api, post.job_id, {"done", "error"})
+    state = wait_for(api, post.job_id, {"done", "error"})
+    # The glb part names are the semantic labels; the import must not
+    # rename them to segment_1..N.
+    objs = api.status(post.job_id).get("objects") or []
+    check("segment import keeps the glb part names",
+          state == "done" and objs and
+          not any(o.startswith("segment") for o in objs), str(objs))
     settle(api)
 
     # A forced re-run clears the stale result so nothing chains off it.
