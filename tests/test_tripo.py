@@ -2080,7 +2080,26 @@ def test_view_redo_and_thumb_persistence(api, mock):
 
     ng = bpy.data.node_groups.new("RedoGraph", nodes.TREE_ID)
     views = ng.nodes.new("GoogleViewsNode")
+
+    # No prompt and no reference: refuse before billing.
+    try:
+        bpy.ops.tripo.google_views(node_name=views.name, tree_name=ng.name)
+        refused = False
+    except RuntimeError:
+        refused = True
+    check("views refuse with neither subject nor reference", refused)
+
+    # A reference alone is enough -- the description is optional.
+    views.reference = mock.sample_image()
+    bpy.ops.tripo.google_views(node_name=views.name, tree_name=ng.name)
+    check("reference-only views complete", wait_google(views.job_id) == "done")
+    body = mock.google_calls[-1]
+    text = next(p["text"] for p in body["input"] if p.get("type") == "text")
+    check("prompt derives the subject from the reference",
+          "reference image" in text, text[:80])
+
     views.prompt = "a small stool"
+    views.job_id = ""
     bpy.ops.tripo.google_views(node_name=views.name, tree_name=ng.name)
     check("views job completes", wait_google(views.job_id) == "done")
     first = dict(views.images())

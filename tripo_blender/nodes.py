@@ -735,7 +735,11 @@ class GoogleViewsNode(GoogleNodeMixin, TripoNode, bpy.types.Node):
     bl_icon = "IMGDISPLAY"
     bl_width_default = 280
 
-    prompt: bpy.props.StringProperty(name="Subject")
+    prompt: bpy.props.StringProperty(
+        name="Subject",
+        description="Optional when a reference image is connected or picked "
+                    "-- the reference is the subject. Add text only to "
+                    "steer details the image doesn't show")
     reference: bpy.props.StringProperty(name="Reference", subtype="FILE_PATH")
     model: bpy.props.EnumProperty(name="Model", items=_model_items, default=1)
     image_size: bpy.props.EnumProperty(name="Size", items=_size_items)
@@ -759,7 +763,11 @@ class GoogleViewsNode(GoogleNodeMixin, TripoNode, bpy.types.Node):
             box.operator("tripo.setup_keys", text="Set API keys",
                          icon="KEY_HLT")
 
-        layout.prop(self, "prompt", text="")
+        # (text label, not `placeholder` -- that kwarg is 4.1+ and the
+        # addon supports 4.0)
+        has_ref = bool(self.upstream_image() or self.reference.strip())
+        layout.prop(self, "prompt",
+                    text="Optional" if has_ref else "Subject")
         if self.upstream_image():
             layout.label(text="Using upstream image", icon="LINKED")
         else:

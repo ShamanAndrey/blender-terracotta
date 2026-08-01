@@ -659,12 +659,14 @@ class TRIPO_OT_google_views(bpy.types.Operator):
         if node.is_busy():
             self.report({"ERROR"}, "This node already has a job running")
             return {"CANCELLED"}
-        if not node.prompt.strip():
-            self.report({"ERROR"}, "Describe the subject first")
-            return {"CANCELLED"}
         ref = node.upstream_image() or (
             bpy.path.abspath(node.reference.strip())
             if node.reference.strip() else None)
+        if not node.prompt.strip() and not ref:
+            self.report({"ERROR"},
+                        "Connect or pick a reference image, or describe "
+                        "the subject")
+            return {"CANCELLED"}
         try:
             node.job_id = google_api.generate_views(
                 node.prompt.strip(), reference=ref, model=node.model,
@@ -994,9 +996,6 @@ class TRIPO_OT_google_view_redo(bpy.types.Operator):
         if self.view not in google_api.VIEW_PROMPTS:
             self.report({"ERROR"}, f"Unknown view '{self.view}'")
             return {"CANCELLED"}
-        if not node.prompt.strip():
-            self.report({"ERROR"}, "Describe the subject first")
-            return {"CANCELLED"}
         current = dict(node.images())
         if not current:
             self.report({"ERROR"}, "Generate the views first")
@@ -1004,6 +1003,11 @@ class TRIPO_OT_google_view_redo(bpy.types.Operator):
         ref = node.upstream_image() or (
             bpy.path.abspath(node.reference.strip())
             if node.reference.strip() else None)
+        if not node.prompt.strip() and not ref:
+            self.report({"ERROR"},
+                        "Connect or pick a reference image, or describe "
+                        "the subject")
+            return {"CANCELLED"}
         try:
             node.job_id = google_api.generate_views(
                 node.prompt.strip(), reference=ref, model=node.model,

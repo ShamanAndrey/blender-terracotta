@@ -250,7 +250,13 @@ def generate_views(subject_prompt, reference=None,
     that carries the same reference image for consistency. Requests run
     sequentially -- the reference is what keeps them coherent, and firing them
     in parallel gains little while making failures harder to attribute.
+
+    subject_prompt is optional when a reference image is provided: the
+    reference IS the subject, and demanding a redundant description was
+    just friction.
     """
+    if not (subject_prompt or "").strip() and not reference:
+        raise ValueError("Provide a reference image or describe the subject")
     key = read_key()
     api._ensure_timer()
     job_id = api.register_job(kind="google_views", prompt=subject_prompt,
@@ -265,7 +271,9 @@ def generate_views(subject_prompt, reference=None,
             # the other three paid images in the result set.
             saved = dict(base_images or {})
             for i, view in enumerate(views):
-                prompt = (f"{subject_prompt}. {VIEW_PROMPTS[view]}. "
+                subject = (subject_prompt or "").strip() or \
+                    "The exact subject shown in the reference image"
+                prompt = (f"{subject}. {VIEW_PROMPTS[view]}. "
                           "Plain neutral background, whole subject in frame, "
                           "consistent proportions and colours across views.")
                 inputs = [{"type": "text", "text": prompt}]
