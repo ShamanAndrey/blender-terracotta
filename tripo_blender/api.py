@@ -641,14 +641,30 @@ def _history_path():
 _history_lock = threading.Lock()
 
 
+_history_cache = {"mtime": -1.0, "items": []}
+
+
 def history(limit=50):
-    """Past tasks, newest first."""
+    """Past tasks, newest first.
+
+    Cached on file mtime: node previews consult history on every redraw,
+    and re-parsing the file each time would make the UI cost scale with
+    history size.
+    """
     with _history_lock:
+        path = _history_path()
         try:
-            with open(_history_path()) as f:
-                return json.load(f)[:limit]
-        except (OSError, ValueError):
+            mtime = os.path.getmtime(path)
+        except OSError:
             return []
+        if mtime != _history_cache["mtime"]:
+            try:
+                with open(path) as f:
+                    _history_cache["items"] = json.load(f)
+                _history_cache["mtime"] = mtime
+            except (OSError, ValueError):
+                return []
+        return _history_cache["items"][:limit]
 
 
 def _record(entry):

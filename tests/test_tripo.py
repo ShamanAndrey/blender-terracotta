@@ -1971,6 +1971,58 @@ def test_google_preview_survives_restart(api, mock):
     bpy.data.node_groups.remove(ng)
 
 
+def test_view_redo_and_thumb_persistence(api, mock):
+    section("Per-view redo and Tripo preview persistence")
+
+    from tripo_blender import nodes
+
+    def wait_google(job_id, timeout=10):
+        deadline = time.time() + timeout
+        while time.time() < deadline and \
+                api.status(job_id).get("state") not in ("done", "error"):
+            time.sleep(0.05)
+        return api.status(job_id).get("state")
+
+    ng = bpy.data.node_groups.new("RedoGraph", nodes.TREE_ID)
+    views = ng.nodes.new("GoogleViewsNode")
+    views.prompt = "a small stool"
+    bpy.ops.tripo.google_views(node_name=views.name, tree_name=ng.name)
+    check("views job completes", wait_google(views.job_id) == "done")
+    first = dict(views.images())
+    check("four views generated",
+          set(first) == {"front", "left", "back", "right"}, str(set(first)))
+
+    # Redo one view: one billed request, other three carried over.
+    ncalls = len(mock.google_calls)
+    bpy.ops.tripo.google_view_redo(node_name=views.name, tree_name=ng.name,
+                                   view="left")
+    check("redo job completes", wait_google(views.job_id) == "done")
+    second = views.images()
+    check("still four views after a single redo",
+          set(second) == {"front", "left", "back", "right"}, str(set(second)))
+    check("only one image was billed",
+          len(mock.google_calls) == ncalls + 1,
+          f"{ncalls} -> {len(mock.google_calls)}")
+    check("left view replaced", second["left"] != first["left"])
+    check("front view carried over", second["front"] == first["front"])
+
+    # A Tripo node picked up after a restart shows its stored result.
+    gen = ng.nodes.new("TripoGenerateNode")
+    gen.prompt = "persist me"
+    bpy.ops.tripo.node_generate(node_name=gen.name, tree_name=ng.name)
+    wait_for(api, gen.job_id, {"done", "error"})
+    settle(api)
+    task = gen.task_id()
+    with api._jobs_lock:
+        api._jobs.pop(gen.job_id, None)
+    entry = gen.stored_result()
+    check("stored result resolves after restart",
+          entry is not None and entry.get("task_id") == task, str(entry))
+    check("stored result carries the thumbnail",
+          bool(entry and entry.get("thumb")))
+    bpy.data.node_groups.remove(ng)
+
+
 def test_view_image(api, mock):
     section("Full-size image viewer")
 
@@ -2194,6 +2246,7 @@ def main():
         test_hardening(api, mock)
         test_view_image(api, mock)
         test_google_preview_survives_restart(api, mock)
+        test_view_redo_and_thumb_persistence(api, mock)
         test_lifecycle(api, mock)
         test_new_file_only_setup(api, mock)
     finally:

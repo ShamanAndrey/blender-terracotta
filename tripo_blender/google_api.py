@@ -242,7 +242,8 @@ VIEW_PROMPTS = {
 
 def generate_views(subject_prompt, reference=None,
                    model="gemini-3-pro-image", image_size=None, name=None,
-                   views=("front", "left", "back", "right")):
+                   views=("front", "left", "back", "right"),
+                   base_images=None):
     """Generate consistent orthographic views for multiview-to-3D.
 
     Google has no single multiview call, so each view is a separate request
@@ -260,7 +261,9 @@ def generate_views(subject_prompt, reference=None,
             api.update_job(job_id, **kw)
         try:
             note(state="running", progress=0)
-            saved = {}
+            # Start from any carried-over views: regenerating one view keeps
+            # the other three paid images in the result set.
+            saved = dict(base_images or {})
             for i, view in enumerate(views):
                 prompt = (f"{subject_prompt}. {VIEW_PROMPTS[view]}. "
                           "Plain neutral background, whole subject in frame, "

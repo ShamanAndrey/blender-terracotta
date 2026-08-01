@@ -48,7 +48,7 @@ from .operators import (_task_enum_items, _object_menu,
                         TRIPO_OT_pick_task, TRIPO_OT_clear_node_task,
                         TRIPO_OT_add_reference, TRIPO_OT_remove_reference,
                         TRIPO_OT_render_reference, TRIPO_OT_optimize,
-                        TRIPO_OT_view_image,
+                        TRIPO_OT_view_image, TRIPO_OT_google_view_redo,
                         TRIPO_OT_frame, TRIPO_OT_refresh_balance,
                         TRIPO_OT_clear_jobs)
 from .panels import TripoPanel, TRIPO_PT_jobs, TRIPO_PT_library

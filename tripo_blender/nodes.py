@@ -187,14 +187,43 @@ class TripoNode:
             return True
         return bool(self.task_id())
 
+    def stored_result(self):
+        """The history row for this node's task, if any.
+
+        The live job dies with the session; the history row (and its cached
+        thumbnail) is what survives a restart or a task picked from history.
+        """
+        task = self.task_id()
+        if not task:
+            return None
+        for entry in api.history(limit=999):
+            if entry.get("task_id") == task:
+                return entry
+        return None
+
     def draw_status(self, layout):
         job = self.job()
         state = job.get("state")
 
         if not state or state == "unknown":
-            # Job dict cleared (reload/restart) but the node may still know its
-            # task -- say so instead of showing a bare "unknown".
-            if self.last_task:
+            # Job dict cleared (reload/restart) but the node may still know
+            # its task -- show the persisted result instead of a bare label.
+            entry = self.stored_result()
+            if entry is not None:
+                thumb = entry.get("thumb")
+                icon = previews.icon_id(f"hist_{entry['task_id']}", thumb)                     if thumb else 0
+                if icon:
+                    layout.template_icon(icon_value=icon,
+                                         scale=max(4.0, self.width / 20.0))
+                row = layout.row()
+                row.label(text="complete", icon="CHECKMARK")
+                if entry.get("credits"):
+                    row.label(text=f"{int(entry['credits'])}cr")
+                if thumb:
+                    op = row.operator("tripo.view_image", text="",
+                                      icon="ZOOM_IN", emboss=False)
+                    op.path = thumb
+            elif self.last_task:
                 row = layout.row()
                 row.label(text="ready (earlier session)", icon="CHECKMARK")
             return
@@ -728,6 +757,12 @@ class GoogleViewsNode(GoogleNodeMixin, TripoNode, bpy.types.Node):
                     op = r.operator("tripo.view_image", text="",
                                     icon="ZOOM_IN", emboss=False)
                     op.path = images[view]
+                    if not self.is_busy():
+                        op = r.operator("tripo.google_view_redo", text="",
+                                        icon="FILE_REFRESH", emboss=False)
+                        op.node_name = self.name
+                        op.tree_name = self.id_data.name
+                        op.view = view
 
         row = self.action_row(layout)
         op = row.operator("tripo.google_views", icon="PLAY",

@@ -945,6 +945,50 @@ def _object_menu(self, context):
 
 
 
+class TRIPO_OT_google_view_redo(bpy.types.Operator):
+    bl_idname = "tripo.google_view_redo"
+    bl_label = "Regenerate View"
+    bl_description = ("Regenerate just this view, keeping the other three. "
+                      "One image billed by Google")
+
+    node_name: bpy.props.StringProperty()
+    tree_name: bpy.props.StringProperty()
+    view: bpy.props.StringProperty()
+
+    def execute(self, context):
+        node = _find_node(self.node_name, self.tree_name)
+        if not node:
+            self.report({"ERROR"}, "Node not found")
+            return {"CANCELLED"}
+        if node.is_busy():
+            self.report({"ERROR"}, "This node already has a job running")
+            return {"CANCELLED"}
+        if self.view not in google_api.VIEW_PROMPTS:
+            self.report({"ERROR"}, f"Unknown view '{self.view}'")
+            return {"CANCELLED"}
+        if not node.prompt.strip():
+            self.report({"ERROR"}, "Describe the subject first")
+            return {"CANCELLED"}
+        current = dict(node.images())
+        if not current:
+            self.report({"ERROR"}, "Generate the views first")
+            return {"CANCELLED"}
+        ref = node.upstream_image() or (
+            bpy.path.abspath(node.reference.strip())
+            if node.reference.strip() else None)
+        try:
+            node.job_id = google_api.generate_views(
+                node.prompt.strip(), reference=ref, model=node.model,
+                image_size=node.image_size, views=(self.view,),
+                base_images=current)
+        except Exception as e:
+            self.report({"ERROR"}, str(e))
+            return {"CANCELLED"}
+        self.report({"INFO"}, f"Regenerating the {self.view} view")
+        _tag_redraw()
+        return {"FINISHED"}
+
+
 class TRIPO_OT_view_image(bpy.types.Operator):
     bl_idname = "tripo.view_image"
     bl_label = "View Image"
@@ -977,6 +1021,7 @@ class TRIPO_OT_view_image(bpy.types.Operator):
 
 
 classes = (
+    TRIPO_OT_google_view_redo,
     TRIPO_OT_view_image,
     TRIPO_OT_render_reference,
     TRIPO_OT_optimize,
