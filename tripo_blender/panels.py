@@ -14,7 +14,7 @@ from .utils import _wrap
 class TripoPanel:
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
-    bl_category = "Tripo"
+    bl_category = "AI"
 
     @classmethod
     def poll(cls, context):

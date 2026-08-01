@@ -10,7 +10,7 @@ depends on it.
 """
 
 bl_info = {
-    "name": "Tripo for Blender",
+    "name": "AI Asset Graph",
     "author": "local",
     "version": (2, 2),
     # UILayout.progress, temp_override and wm.obj_import are all 4.0+ --
@@ -268,7 +268,7 @@ def _on_import(job_id, job):
                 obj.asset_mark()
                 obj.asset_generate_preview()
                 if obj.asset_data:
-                    obj.asset_data.tags.new("tripo")
+                    obj.asset_data.tags.new("ai-generated")
             except Exception as e:
                 print(f"[tripo] asset mark failed for {obj.name}: {e!r}")
 

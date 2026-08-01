@@ -58,7 +58,7 @@ _focus_attempts = 0
 
 
 def _focus_tripo_tab():
-    """Point the Generate workspace's sidebar at the Tripo panels."""
+    """Point the Generate workspace's sidebar at our panels."""
     global _focus_attempts
     ws = bpy.data.workspaces.get(WORKSPACE_NAME)
     if not ws:
@@ -73,7 +73,7 @@ def _focus_tripo_tab():
                 try:
                     with bpy.context.temp_override(screen=screen, area=area,
                                                    region=region):
-                        region.active_panel_category = "Tripo"
+                        region.active_panel_category = "AI"
                 except Exception:
                     # Regions aren't drawn yet; retry briefly -- but never
                     # forever. A permanent failure must not leave a

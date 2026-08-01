@@ -1,4 +1,4 @@
-# Tripo for Blender
+# AI Asset Graph
 
 AI 3D asset generation as a node graph, inside Blender. Generate meshes with
 [Tripo](https://www.tripo3d.ai), concept images and reference views with
@@ -12,7 +12,7 @@ keys are all it needs.
 
 1. Download `tripo_blender.zip` (or build it: `python3 tools/build_zip.py`).
 2. Blender → Edit → Preferences → Add-ons → Install… → pick the zip → enable
-   **Tripo for Blender**. Blender 4.0 or newer.
+   **AI Asset Graph**. Blender 4.0 or newer.
 3. Open the **Generate** workspace from the top bar (new files get it
    automatically, along with a starter example graph).
 4. Click the key icon in the node editor header (or use the **Account** node)

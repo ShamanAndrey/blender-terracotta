@@ -1475,7 +1475,10 @@ def _add_menu(self, context):
         return
     layout = self.layout
     layout.separator()
-    layout.label(text="Tripo")
+    # Neutral heading: more providers are planned, and the node labels are
+    # already provider-agnostic. Internal idnames stay Tripo-prefixed --
+    # they live inside saved .blend files and must never change.
+    layout.label(text="AI Generation")
     for idname, label, icon in (("GoogleImageNode", "Generate Image", "IMAGE_DATA"),
                                 ("GoogleViewsNode", "Generate Views", "IMGDISPLAY"),
                                 ("TripoGenerateNode", "Generate 3D", "SHADERFX"),
