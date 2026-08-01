@@ -336,6 +336,23 @@ class TripoGenerateNode(TripoNode, bpy.types.Node):
     existing_task: bpy.props.StringProperty(
         name="Existing model",
         description="Reuse a model you already generated instead of paying again")
+    result_stamp: bpy.props.StringProperty()   # settings at last submit
+
+    def settings_stamp(self):
+        """Fingerprint of everything that changes what gets generated."""
+        return "|".join(str(v) for v in (
+            self.mode, self.prompt, self.negative, self.model, self.image,
+            self.mv_front, self.mv_left, self.mv_back, self.mv_right,
+            self.texture, self.pbr, self.texture_quality,
+            self.geometry_quality, self.auto_size, self.quad,
+            self.smart_low_poly, self.generate_parts,
+            self.use_face_limit, self.face_limit,
+            self.use_seeds, self.seed))
+
+    def result_stale(self):
+        """True when the stored result no longer matches the settings."""
+        return bool(self.has_result() and self.result_stamp
+                    and self.result_stamp != self.settings_stamp())
 
     def init(self, context):
         self.inputs.new("TripoImageSocket", "Image")
@@ -395,6 +412,13 @@ class TripoGenerateNode(TripoNode, bpy.types.Node):
 
         layout.prop(self, "model", text="")
         layout.prop(self, "asset_name", text="Name")
+
+        if self.result_stale():
+            box = layout.box()
+            box.alert = True
+            box.label(text="Settings changed since this result",
+                      icon="ERROR")
+            box.label(text="Generate again to replace it")
 
         layout.prop(self, "show_advanced", toggle=True,
                     icon="TRIA_DOWN" if self.show_advanced else "TRIA_RIGHT")
@@ -547,6 +571,12 @@ class TripoSourceNode(TripoNode, bpy.types.Node):
         op.tree_name = self.id_data.name
         layout.label(text="Max 150MB", icon="INFO")
         self.draw_status(layout)
+
+
+class TripoAnimSlot(bpy.types.PropertyGroup):
+    """One queued preset animation on the Animate node."""
+
+    preset: bpy.props.StringProperty()
 
 
 class TripoImageRefSlot(bpy.types.PropertyGroup):
@@ -1224,6 +1254,7 @@ class TripoAnimateNode(TripoNode, bpy.types.Node):
 
     animation: bpy.props.EnumProperty(
         name="Animation", items=costs.ANIMATION_ITEMS, default="preset:idle")
+    animations: bpy.props.CollectionProperty(type=TripoAnimSlot)
     out_format: bpy.props.EnumProperty(
         name="Format", items=[("glb", "glTF", ""), ("fbx", "FBX", "")],
         default="glb")
@@ -1238,7 +1269,12 @@ class TripoAnimateNode(TripoNode, bpy.types.Node):
         self.outputs.new("TripoAssetSocket", "Asset")
 
     def cost(self):
-        return costs.POST["animate_retarget"]
+        return costs.retarget_cost(max(1, len(self.animations)))
+
+    def chosen_presets(self):
+        """The batch if one is queued, else the single dropdown choice."""
+        batch = [slot.preset for slot in self.animations if slot.preset]
+        return batch or [self.animation]
 
     def rig_source(self):
         """The rig to animate: an explicit one, else whatever is connected."""
@@ -1291,9 +1327,25 @@ class TripoAnimateNode(TripoNode, bpy.types.Node):
             self.draw_status(layout)
             return
 
+        # Batch queue: one task carries up to five presets.
+        row = layout.row(align=True)
+        op = row.operator("tripo.anim_add", text="Add to batch", icon="ADD")
+        op.node_name = self.name
+        op.tree_name = self.id_data.name
+        for i, slot in enumerate(self.animations):
+            r = layout.row(align=True)
+            r.label(text=slot.preset.split(":")[-1].replace("_", " "))
+            op = r.operator("tripo.anim_remove", text="", icon="X",
+                            emboss=False)
+            op.node_name = self.name
+            op.tree_name = self.id_data.name
+            op.index = i
+
+        n = max(1, len(self.animations))
+        label = (f"Animate {n} presets  ({self.cost()} cr)" if n > 1
+                 else f"Animate  ({self.cost()} cr)")
         row = self.action_row(layout)
-        op = row.operator("tripo.node_animate", icon="ANIM",
-                          text=f"Animate  ({self.cost()} cr)")
+        op = row.operator("tripo.node_animate", icon="ANIM", text=label)
         op.node_name = self.name
         op.tree_name = self.id_data.name
         self.draw_status(layout)
@@ -1317,12 +1369,18 @@ class TripoImportNode(TripoNode, bpy.types.Node):
     decimate_to: bpy.props.IntProperty(
         name="Decimate to", default=0, min=0, max=2000000,
         description="Reduce to this many faces after import. 0 leaves it alone")
+    collection_name: bpy.props.StringProperty(
+        name="Collection",
+        description="Link imports into this collection (created if needed). "
+                    "Blank puts them at the scene root. Segmentations drop "
+                    "a dozen objects at once -- give them a home")
 
     def init(self, context):
         self.inputs.new("TripoAssetSocket", "Asset")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "asset_name", text="Name")
+        layout.prop(self, "collection_name", text="Into")
         layout.prop(self, "at_cursor")
         layout.prop(self, "mark_asset")
         layout.prop(self, "decimate_to")
@@ -1434,6 +1492,7 @@ def _add_menu(self, context):
 
 
 classes = (
+    TripoAnimSlot,
     TripoImageRefSlot,
     TripoNodeTree,
     TripoAssetSocket,

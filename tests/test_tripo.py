@@ -1764,6 +1764,104 @@ def test_panel_retirement(api, mock):
     bpy.data.node_groups.remove(ng)
 
 
+def test_feature_wins(api, mock):
+    section("Batch animations, stale hints, adjustments, collections")
+
+    import time as _time
+    from tripo_blender import google_api, nodes
+
+    ng = bpy.data.node_groups.new("WinsGraph", nodes.TREE_ID)
+
+    # -- Batch animations ---------------------------------------------------
+    gen = ng.nodes.new("TripoGenerateNode")
+    gen.prompt = "a character"
+    rig = ng.nodes.new("TripoRigNode")
+    anim = ng.nodes.new("TripoAnimateNode")
+    ng.links.new(gen.outputs["Asset"], rig.inputs["Asset"])
+    ng.links.new(rig.outputs["Rig"], anim.inputs["Rig"])
+    bpy.ops.tripo.node_generate(node_name=gen.name, tree_name=ng.name)
+    wait_for(api, gen.job_id, {"done", "error"})
+    settle(api)
+    bpy.ops.tripo.node_rig(node_name=rig.name, tree_name=ng.name)
+    wait_for(api, rig.job_id, {"done", "error"})
+    settle(api)
+
+    for preset in ("preset:idle", "preset:walk", "preset:run"):
+        anim.animation = preset
+        bpy.ops.tripo.anim_add(node_name=anim.name, tree_name=ng.name)
+    check("batch holds three presets", len(anim.animations) == 3)
+    check("batch is quoted per animation", anim.cost() == 30,
+          str(anim.cost()))
+    try:
+        bpy.ops.tripo.anim_add(node_name=anim.name, tree_name=ng.name)
+        dup = False
+    except RuntimeError:
+        dup = True
+    check("duplicates are refused", dup or len(anim.animations) == 3)
+
+    n = mock.submit_count()
+    bpy.ops.tripo.node_animate(node_name=anim.name, tree_name=ng.name)
+    mock.wait_for_submit(n)
+    body = mock.last_body()
+    check("batch travels as animations[]",
+          body.get("animations") == ["preset:idle", "preset:walk",
+                                     "preset:run"], str(body))
+    wait_for(api, anim.job_id, {"done", "error"})
+    settle(api)
+    bpy.ops.tripo.anim_remove(node_name=anim.name, tree_name=ng.name, index=1)
+    check("remove shrinks the batch", len(anim.animations) == 2)
+
+    # -- Stale-result hint on Generate --------------------------------------
+    check("fresh result is not stale", not gen.result_stale())
+    gen.prompt = "a completely different character"
+    check("edited settings mark the result stale", gen.result_stale())
+
+    # -- Redo-with-adjustment ------------------------------------------------
+    views = ng.nodes.new("GoogleViewsNode")
+    views.reference = mock.sample_image()
+    bpy.ops.tripo.google_views(node_name=views.name, tree_name=ng.name)
+    deadline = _time.time() + 10
+    while _time.time() < deadline and \
+            api.status(views.job_id).get("state") not in ("done", "error"):
+        _time.sleep(0.05)
+    bpy.ops.tripo.google_view_redo(node_name=views.name, tree_name=ng.name,
+                                   view="back", adjust="make the arms lower")
+    deadline = _time.time() + 10
+    while _time.time() < deadline and \
+            api.status(views.job_id).get("state") not in ("done", "error"):
+        _time.sleep(0.05)
+    body = mock.google_calls[-1]
+    text = next(p["text"] for p in body["input"] if p.get("type") == "text")
+    check("adjustment reaches the prompt", "make the arms lower" in text,
+          text[-90:])
+
+    # -- Import into a named collection -------------------------------------
+    import bmesh
+    mesh = bpy.data.meshes.new("CollMesh")
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new("CollObj", mesh)
+    bpy.context.collection.objects.link(obj)
+    imp = ng.nodes.new("TripoImportNode")
+    imp.collection_name = "Generated Stuff"
+    imp.at_cursor = False
+    imp.job_id = "fake-coll-job"
+    import tripo_blender as tb
+    tb._on_import("fake-coll-job", {"objects": ["CollObj"]})
+    coll = bpy.data.collections.get("Generated Stuff")
+    check("collection created", coll is not None)
+    check("object lives in the collection",
+          coll is not None and "CollObj" in coll.objects)
+    check("object left the scene root",
+          "CollObj" not in bpy.context.scene.collection.objects)
+
+    bpy.data.objects.remove(obj, do_unlink=True)
+    bpy.data.collections.remove(coll)
+    bpy.data.node_groups.remove(ng)
+
+
 def test_run_graph_quote(api, mock):
     section("Run Graph cost quote")
 
@@ -2422,6 +2520,7 @@ def main():
         test_money_guards(api, mock)
         test_model_capability_matrix(api, mock)
         test_run_graph_quote(api, mock)
+        test_feature_wins(api, mock)
         test_hardening(api, mock)
         test_view_image(api, mock)
         test_google_preview_survives_restart(api, mock)

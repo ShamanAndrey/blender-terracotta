@@ -332,6 +332,7 @@ class TRIPO_OT_node_generate(bpy.types.Operator):
             return {"CANCELLED"}
 
         node.last_task = ""
+        node.result_stamp = node.settings_stamp()
         self.report({"INFO"}, f"Submitted, ~{node.cost()} credits")
         _tag_redraw()
         return {"FINISHED"}
@@ -763,10 +764,11 @@ class TRIPO_OT_node_animate(bpy.types.Operator):
                             "(API limit). Re-rig with Tripo bones, or use "
                             "animations from mixamo.com")
                 return {"CANCELLED"}
+            presets = node.chosen_presets()
             node.job_id = api.start_retarget(
-                rig_task, [node.animation], out_format=node.out_format,
+                rig_task, presets, out_format=node.out_format,
                 animate_in_place=node.animate_in_place,
-                name=node.animation.split(":")[-1])
+                name="_".join(p.split(":")[-1] for p in presets)[:40])
         except Exception as e:
             self.report({"ERROR"}, str(e))
             return {"CANCELLED"}
@@ -996,6 +998,51 @@ def _object_menu(self, context):
 
 
 
+class TRIPO_OT_anim_add(bpy.types.Operator):
+    bl_idname = "tripo.anim_add"
+    bl_label = "Add to Batch"
+    bl_description = ("Queue the selected preset. One retarget task carries "
+                      "up to five animations")
+
+    node_name: bpy.props.StringProperty()
+    tree_name: bpy.props.StringProperty()
+
+    def execute(self, context):
+        node = _find_node(self.node_name, self.tree_name)
+        if not node:
+            self.report({"ERROR"}, "Node not found")
+            return {"CANCELLED"}
+        if len(node.animations) >= 5:
+            self.report({"ERROR"}, "The API caps a retarget at 5 animations")
+            return {"CANCELLED"}
+        if any(s.preset == node.animation for s in node.animations):
+            self.report({"WARNING"}, "Already queued")
+            return {"CANCELLED"}
+        node.animations.add().preset = node.animation
+        _tag_redraw()
+        return {"FINISHED"}
+
+
+class TRIPO_OT_anim_remove(bpy.types.Operator):
+    bl_idname = "tripo.anim_remove"
+    bl_label = "Remove"
+    bl_description = "Remove this animation from the batch"
+
+    node_name: bpy.props.StringProperty()
+    tree_name: bpy.props.StringProperty()
+    index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        node = _find_node(self.node_name, self.tree_name)
+        if not node:
+            self.report({"ERROR"}, "Node not found")
+            return {"CANCELLED"}
+        if 0 <= self.index < len(node.animations):
+            node.animations.remove(self.index)
+        _tag_redraw()
+        return {"FINISHED"}
+
+
 class TRIPO_OT_google_view_redo(bpy.types.Operator):
     bl_idname = "tripo.google_view_redo"
     bl_label = "Regenerate View"
@@ -1005,6 +1052,19 @@ class TRIPO_OT_google_view_redo(bpy.types.Operator):
     node_name: bpy.props.StringProperty()
     tree_name: bpy.props.StringProperty()
     view: bpy.props.StringProperty()
+    adjust: bpy.props.StringProperty(
+        name="Change",
+        description="What should be different this time. Leave blank to "
+                    "simply reroll")
+
+    def invoke(self, context, event):
+        self.adjust = ""
+        return context.window_manager.invoke_props_dialog(self, width=300)
+
+    def draw(self, context):
+        col = self.layout.column()
+        col.label(text=f"Regenerate the {self.view} view")
+        col.prop(self, "adjust", text="")
 
     def execute(self, context):
         node = _find_node(self.node_name, self.tree_name)
@@ -1033,7 +1093,7 @@ class TRIPO_OT_google_view_redo(bpy.types.Operator):
             node.job_id = google_api.generate_views(
                 node.prompt.strip(), reference=ref, model=node.model,
                 image_size=node.image_size, views=(self.view,),
-                base_images=current)
+                base_images=current, adjustment=self.adjust)
         except Exception as e:
             self.report({"ERROR"}, str(e))
             return {"CANCELLED"}
@@ -1074,6 +1134,8 @@ class TRIPO_OT_view_image(bpy.types.Operator):
 
 
 classes = (
+    TRIPO_OT_anim_add,
+    TRIPO_OT_anim_remove,
     TRIPO_OT_google_view_redo,
     TRIPO_OT_view_image,
     TRIPO_OT_render_reference,

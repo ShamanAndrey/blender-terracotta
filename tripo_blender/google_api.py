@@ -243,7 +243,7 @@ VIEW_PROMPTS = {
 def generate_views(subject_prompt, reference=None,
                    model="gemini-3-pro-image", image_size=None, name=None,
                    views=("front", "left", "back", "right"),
-                   base_images=None):
+                   base_images=None, adjustment=None):
     """Generate consistent orthographic views for multiview-to-3D.
 
     Google has no single multiview call, so each view is a separate request
@@ -276,6 +276,9 @@ def generate_views(subject_prompt, reference=None,
                 prompt = (f"{subject}. {VIEW_PROMPTS[view]}. "
                           "Plain neutral background, whole subject in frame, "
                           "consistent proportions and colours across views.")
+                if adjustment and adjustment.strip():
+                    prompt += f" Change from the previous attempt: " \
+                              f"{adjustment.strip()}."
                 inputs = [{"type": "text", "text": prompt}]
                 if reference:
                     inputs.append(_encode_image(reference))

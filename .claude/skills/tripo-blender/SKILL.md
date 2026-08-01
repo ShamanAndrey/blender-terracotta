@@ -9,6 +9,22 @@ Generate assets with Tripo, import them into a live Blender session, and make
 them usable. Every generation costs credits, so the goal is to get it right on
 the first attempt rather than iterate on the API's dime.
 
+## The product is a node graph
+
+End users never see these api calls: the addon's whole surface is the
+**Generate workspace** -- a node graph (Gemini image -> views -> Tripo 3D ->
+process/segment -> rig -> animate -> export/import) with per-button prices, a
+Run Graph cost confirmation, job history and free re-imports. When working on
+the addon itself, that graph is the only UI; there is no viewport panel
+(CLAUDE.md rule 3). The api module below is the same engine the nodes drive,
+and is the right interface for Claude sessions.
+
+Current routes are v3 (`/v3/generation/*`, `/v3/mesh/*`, `/v3/models/*`,
+`/v3/animations/*`) except stylize (legacy v2 only). Per-model parameter
+rules, prices and traps live in TRIPO_API.md -- read it before unfamiliar
+calls; several "obvious" parameters are model-gated (v2.5 takes none of the
+advanced ones) and some prices in Tripo's own doc examples are wrong.
+
 ## Before anything else
 
 Blender must be running with **Connect to Claude** active in the BlenderMCP

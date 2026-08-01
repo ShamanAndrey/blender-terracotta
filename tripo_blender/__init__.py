@@ -49,6 +49,7 @@ from .operators import (_task_enum_items, _object_menu,
                         TRIPO_OT_add_reference, TRIPO_OT_remove_reference,
                         TRIPO_OT_render_reference, TRIPO_OT_optimize,
                         TRIPO_OT_view_image, TRIPO_OT_google_view_redo,
+                        TRIPO_OT_anim_add, TRIPO_OT_anim_remove,
                         TRIPO_OT_frame, TRIPO_OT_refresh_balance,
                         TRIPO_OT_clear_jobs)
 from .panels import TripoPanel, TRIPO_PT_jobs, TRIPO_PT_library
@@ -237,6 +238,20 @@ def _on_import(job_id, job):
                 meshtools.decimate(obj.name, target_polys=target)
             except Exception as e:
                 print(f"[tripo] decimate failed for {obj.name}: {e!r}")
+
+    coll_name = (getattr(node, "collection_name", "") or "").strip() \
+        if node is not None else ""
+    if coll_name:
+        coll = bpy.data.collections.get(coll_name)
+        if coll is None:
+            coll = bpy.data.collections.new(coll_name)
+        scene_children = bpy.context.scene.collection.children
+        if coll.name not in {c.name for c in scene_children}:
+            scene_children.link(coll)
+        for obj in objects:
+            for c in list(obj.users_collection):
+                c.objects.unlink(obj)
+            coll.objects.link(obj)
 
     if node is not None and getattr(node, "mark_asset", False):
         for obj in objects:
