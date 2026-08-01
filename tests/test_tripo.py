@@ -2376,6 +2376,10 @@ def test_new_file_only_setup(api, mock):
           tb._should_auto_setup() is False, repr(bpy.data.filepath))
 
     prefs.auto_workspace = False
+    import inspect
+    src = inspect.getsource(tb._ui_tick)
+    check("auto-setup restores the previous workspace",
+          "previous" in src and "window.workspace" in src)
     check("the preference disables even new files",
           tb._should_auto_setup() is False)
     prefs.auto_workspace = True

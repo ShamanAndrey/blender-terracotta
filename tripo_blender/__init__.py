@@ -132,9 +132,18 @@ def _ui_tick():
         _workspace_checked = True
         try:
             if _should_auto_setup():
+                # Appending the workspace also activates it, which would
+                # steal the startup screen on every new file. Furnish the
+                # tab, then put the user back where Blender opened them.
+                window = bpy.context.window_manager.windows[0] \
+                    if bpy.context.window_manager.windows else None
+                previous = window.workspace if window else None
                 if WORKSPACE_NAME not in bpy.data.workspaces:
                     bpy.ops.tripo.add_workspace()
                 _seed_example()
+                if window is not None and previous is not None \
+                        and previous.name != WORKSPACE_NAME:
+                    window.workspace = previous
         except Exception as e:
             print(f"[tripo] workspace auto-add skipped: {e!r}")
 
