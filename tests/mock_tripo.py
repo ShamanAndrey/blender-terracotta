@@ -89,7 +89,9 @@ def _fake_request(url, key, payload=None, timeout=60):
         _task_counter += 1
         tid = f"task-mock-{_task_counter:04d}"
         ttype = payload.get("type", "")
-        if ttype in ("text_to_image", "generate_image"):
+        if "animations/rig-check" in url:
+            _task_kinds[tid] = "prerig"
+        elif ttype in ("text_to_image", "generate_image"):
             _task_kinds[tid] = "image"
         elif ttype == "animate_prerigcheck":
             _task_kinds[tid] = "prerig"

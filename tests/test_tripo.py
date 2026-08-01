@@ -901,8 +901,11 @@ def test_rigging(api, mock):
     n = mock.submit_count()
     bpy.ops.tripo.node_prerig(node_name=rig.name, tree_name=rig.id_data.name)
     mock.wait_for_submit(n)
-    check("prerigcheck submitted",
-          mock.last_body().get("type") == "animate_prerigcheck",
+    url = [u for u, b in mock.calls if b is not None][-1]
+    check("prerigcheck uses the v3 route",
+          url.endswith("/animations/rig-check"), url)
+    check("prerigcheck sends input",
+          mock.last_body().get("input") == gen.task_id(),
           str(mock.last_body()))
     wait_for(api, rig.check_job_id, {"done", "error"})
     check("riggable reported",
@@ -916,11 +919,14 @@ def test_rigging(api, mock):
     bpy.ops.tripo.node_rig(node_name=rig.name, tree_name=rig.id_data.name)
     mock.wait_for_submit(n)
     body = mock.last_body()
-    check("rig submitted", body.get("type") == "animate_rig", str(body))
+    url = [u for u, b in mock.calls if b is not None][-1]
+    check("rig uses the v3 route", url.endswith("/animations/rig"), url)
     check("biped uses the biped-only default model",
-          body.get("model_version") == _api.RIG_MODEL_DEFAULT, str(body))
-    rig_source = body.get("original_model_task_id")
-    check("rig chains from the mesh", rig_source == gen.task_id(), str(body))
+          body.get("model") == _api.RIG_MODEL_DEFAULT, str(body))
+    check("rig chains from the mesh",
+          body.get("input") == gen.task_id(), str(body))
+    check("bone spec defaults to tripo", body.get("spec") == "tripo",
+          str(body))
 
     settle(api)
     rig.rig_type = "quadruped"
@@ -928,7 +934,7 @@ def test_rigging(api, mock):
     bpy.ops.tripo.node_rig(node_name=rig.name, tree_name=rig.id_data.name)
     mock.wait_for_submit(n)
     check("non-biped switches to the current rig model",
-          mock.last_body().get("model_version") == _api.RIG_MODEL_CURRENT,
+          mock.last_body().get("model") == _api.RIG_MODEL_CURRENT,
           str(mock.last_body()))
     wait_for(api, rig.job_id, {"done", "error"})
     settle(api)
@@ -940,10 +946,12 @@ def test_rigging(api, mock):
     bpy.ops.tripo.node_animate(node_name=anim.name, tree_name=anim.id_data.name)
     mock.wait_for_submit(n)
     body = mock.last_body()
-    check("retarget submitted", body.get("type") == "animate_retarget", str(body))
+    url = [u for u, b in mock.calls if b is not None][-1]
+    check("retarget uses the v3 route",
+          url.endswith("/animations/retarget"), url)
     check("animation chains from the rig task, not the mesh",
-          body.get("original_model_task_id") == rig_task
-          and body.get("original_model_task_id") != gen.task_id(), str(body))
+          body.get("input") == rig_task
+          and body.get("input") != gen.task_id(), str(body))
     check("animation forwarded", body.get("animation") == "preset:idle", str(body))
     check("bake_animation sent for glb", body.get("bake_animation") is True,
           str(body))
@@ -951,7 +959,41 @@ def test_rigging(api, mock):
     # Busy guard: a node with a live job must not offer its action again.
     check("node reports busy while running", not rig.is_busy() or True)
 
-    # Validation
+    # The full preset catalogue is exposed, and a v1-biped preset submits.
+    check("preset catalogue holds the full 117",
+          len(C.ANIMATION_ITEMS) == 117, str(len(C.ANIMATION_ITEMS)))
+    settle(api)
+    anim.animation = "preset:biped:dance_01"
+    n = mock.submit_count()
+    bpy.ops.tripo.node_animate(node_name=anim.name, tree_name=anim.id_data.name)
+    mock.wait_for_submit(n)
+    check("v1 biped preset submits",
+          mock.last_body().get("animation") == "preset:biped:dance_01",
+          str(mock.last_body()))
+    wait_for(api, anim.job_id, {"done", "error"})
+    settle(api)
+
+    # Mixamo bone spec propagates from the node.
+    rig.rig_type = "biped"
+    rig.spec = "mixamo"
+    rig.last_task = ""
+    n = mock.submit_count()
+    bpy.ops.tripo.node_rig(node_name=rig.name, tree_name=rig.id_data.name)
+    mock.wait_for_submit(n)
+    check("mixamo spec propagates", mock.last_body().get("spec") == "mixamo",
+          str(mock.last_body()))
+    wait_for(api, rig.job_id, {"done", "error"})
+    settle(api)
+
+    # Validation -- unknown presets must fail loudly, not be filtered out.
+    raised_msg = ""
+    try:
+        _api.start_retarget("t", ["preset:idle", "not:a:preset"])
+    except ValueError as e:
+        raised_msg = str(e)
+    check("unknown preset named in the error", "not:a:preset" in raised_msg,
+          raised_msg)
+
     for bad, why in ((["not:a:preset"], "unknown animation rejected"),
                      (["preset:idle"] * 6, "more than five animations rejected")):
         raised = False

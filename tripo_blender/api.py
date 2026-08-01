@@ -24,6 +24,8 @@ import uuid
 
 import bpy
 
+from . import costs
+
 # Set by the addon UI so imports can be auto-optimized. Called on the main
 # thread with (job_id, job_dict); exceptions are swallowed to protect the pump.
 post_import_hook = None
@@ -1114,13 +1116,10 @@ RIG_TYPES = ("biped", "quadruped", "hexapod", "octopod", "avian",
 RIG_DESTROYING = {"mesh_segmentation", "mesh_completion", "highpoly_to_lowpoly",
                   "convert_model"}
 
-# Animations available on the current rig versions (v2.0+/v2.5).
-PRESET_ANIMATIONS = (
-    "preset:idle", "preset:walk", "preset:run", "preset:dive", "preset:climb",
-    "preset:jump", "preset:slash", "preset:shoot", "preset:hurt", "preset:fall",
-    "preset:turn", "preset:quadruped:walk", "preset:hexapod:walk",
-    "preset:octopod:walk", "preset:serpentine:march", "preset:aquatic:march",
-)
+# Every preset the API accepts, from the single catalogue in costs.py.
+# Vocabulary depends on the rig model: plain/species presets for v2.5 rigs,
+# the preset:biped:* catalogue for v1.0 biped rigs.
+PRESET_ANIMATIONS = frozenset(item[0] for item in costs.ANIMATION_ITEMS)
 
 RIG_MODEL_DEFAULT = "v1.0-20240301"      # biped only, per the docs
 RIG_MODEL_CURRENT = "v2.5-20260210"      # required for non-biped rigs
@@ -1185,6 +1184,41 @@ def start_segment(source_task_id, model_version="v2.0-20260430",
     return job_id
 
 
+def _start_v3_task(route, body, kind, name, poll_timeout):
+    """Submit a v3 task and poll it through download/import."""
+    key = _read_key()
+    _ensure_timer()
+    job_id = uuid.uuid4().hex[:12]
+    with _jobs_lock:
+        _jobs[job_id] = {"job": job_id, "state": "submitting", "kind": kind,
+                         "prompt": kind, "name": name,
+                         "source": body.get("input")}
+
+    def work():
+        def note(**kw):
+            with _jobs_lock:
+                _jobs[job_id].update(kw)
+        try:
+            resp = _request(f"{V3_BASE}/{route}", key, body)
+            if resp.get("code") not in (0, None):
+                note(state="error", message=f"Submit failed: {resp}")
+                return
+            task_id = (resp.get("data") or {}).get("task_id")
+            if not task_id:
+                note(state="error", message=f"no task_id: {resp}")
+                return
+            note(task_id=task_id, flavor="v3", state="running")
+            _record({"task_id": task_id, "job": job_id, "kind": kind,
+                     "name": name, "flavor": "v3", "time": int(time.time())})
+        except Exception as e:
+            note(state="error", message=str(e))
+            return
+        _poll_and_import(job_id, "v3", task_id, key, name, poll_timeout, note)
+
+    threading.Thread(target=work, daemon=True).start()
+    return job_id
+
+
 def start_prerig_check(source_task_id, name=None, poll_timeout=600):
     """Ask whether a model can be rigged. Free.
 
@@ -1204,14 +1238,16 @@ def start_prerig_check(source_task_id, name=None, poll_timeout=600):
             with _jobs_lock:
                 _jobs[job_id].update(kw)
         try:
-            resp = _request(f"{V2_BASE}/task", key,
-                            {"type": "animate_prerigcheck",
-                             "original_model_task_id": source_task_id})
+            resp = _request(f"{V3_BASE}/animations/rig-check", key,
+                            {"input": source_task_id})
+            if resp.get("code") not in (0, None):
+                note(state="error", message=f"Submit failed: {resp}")
+                return
             task_id = (resp.get("data") or {}).get("task_id")
             if not task_id:
                 note(state="error", message=f"no task_id: {resp}")
                 return
-            note(task_id=task_id, flavor="v2", state="running")
+            note(task_id=task_id, flavor="v3", state="running")
         except Exception as e:
             note(state="error", message=str(e))
             return
@@ -1219,7 +1255,7 @@ def start_prerig_check(source_task_id, name=None, poll_timeout=600):
         deadline = time.time() + poll_timeout
         try:
             while time.time() < deadline:
-                data = (_request(_poll_url("v2", task_id), key).get("data") or {})
+                data = (_request(_poll_url("v3", task_id), key).get("data") or {})
                 status = (data.get("status") or "").lower()
                 note(progress=data.get("progress"), api_status=status)
                 if status in ("success", "succeeded", "completed"):
@@ -1242,44 +1278,57 @@ def start_prerig_check(source_task_id, name=None, poll_timeout=600):
 
 
 def start_rig(source_task_id, rig_type="biped", out_format="glb",
-              model_version=None, name=None, poll_timeout=1800):
-    """Rig a model. 25 credits.
+              model_version=None, spec="tripo", name=None, poll_timeout=1800):
+    """Rig a model via POST /v3/animations/rig.
 
-    The default rig model is biped-only; anything else needs the current
-    version, so pick it automatically rather than letting the call fail.
+    25 credits measured on the legacy route; the v3 doc example says 30 --
+    re-measure on the first live run. The default rig model is biped-only;
+    anything else needs the current version, so pick it automatically
+    rather than letting the call fail.
     """
     if rig_type not in RIG_TYPES:
         raise ValueError(f"Unknown rig_type '{rig_type}'")
+    if spec not in ("tripo", "mixamo"):
+        raise ValueError(f"Unknown spec '{spec}'")
     if model_version is None:
         model_version = (RIG_MODEL_DEFAULT if rig_type == "biped"
                          else RIG_MODEL_CURRENT)
-    return start_post("animate_rig", source_task_id, name=name,
-                      poll_timeout=poll_timeout,
-                      rig_type=rig_type, out_format=out_format,
-                      model_version=model_version)
+    body = {"input": source_task_id, "model": model_version,
+            "rig_type": rig_type, "spec": spec, "out_format": out_format}
+    return _start_v3_task("animations/rig", body, "animate_rig",
+                          name, poll_timeout)
 
 
 def start_retarget(rig_task_id, animations, out_format="glb",
                    bake_animation=True, export_with_geometry=True,
                    animate_in_place=False, name=None, poll_timeout=1800):
-    """Apply preset animations to a rigged model. 10 credits per animation."""
-    anims = [a for a in (animations or []) if a in PRESET_ANIMATIONS]
+    """Apply preset animations to a rigged model via /v3/animations/retarget.
+
+    10 credits per animation measured on the legacy route; the v3 doc
+    example says 20 -- re-measure on the first live run.
+    """
+    anims = list(animations or [])
+    unknown = [a for a in anims if a not in PRESET_ANIMATIONS]
+    if unknown:
+        # Loudly: this used to filter silently, which turned a typo into
+        # "Pick at least one preset animation" with no hint why.
+        raise ValueError("Unknown animation preset(s): " + ", ".join(unknown))
     if not anims:
         raise ValueError("Pick at least one preset animation")
     if len(anims) > 5:
         raise ValueError("At most 5 animations per retarget task")
 
-    extra = {"out_format": out_format,
-             "export_with_geometry": export_with_geometry}
+    body = {"input": rig_task_id, "out_format": out_format,
+            "export_with_geometry": export_with_geometry}
     # bake_animation only applies to glb output.
     if out_format == "glb":
-        extra["bake_animation"] = bake_animation
+        body["bake_animation"] = bake_animation
     if animate_in_place:
-        extra["animate_in_place"] = True
+        body["animate_in_place"] = True
     if len(anims) == 1:
-        extra["animation"] = anims[0]
+        body["animation"] = anims[0]
     else:
-        extra["animations"] = anims
+        body["animations"] = anims
 
-    return start_post("animate_retarget", rig_task_id, name=name,
-                      poll_timeout=poll_timeout, **extra)
+    return _start_v3_task("animations/retarget", body, "animate_retarget",
+                          name, poll_timeout)

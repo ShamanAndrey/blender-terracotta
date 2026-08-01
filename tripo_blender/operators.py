@@ -679,6 +679,7 @@ class TRIPO_OT_node_rig(bpy.types.Operator):
         try:
             node.job_id = api.start_rig(src, rig_type=node.rig_type,
                                         out_format=node.out_format,
+                                        spec=node.spec,
                                         name=f"rig_{node.rig_type}")
         except Exception as e:
             self.report({"ERROR"}, str(e))

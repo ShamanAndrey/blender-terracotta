@@ -1012,6 +1012,13 @@ class TripoRigNode(TripoNode, bpy.types.Node):
     out_format: bpy.props.EnumProperty(
         name="Format", items=[("glb", "glTF", ""), ("fbx", "FBX", "")],
         default="glb")
+    spec: bpy.props.EnumProperty(
+        name="Bones",
+        items=[("tripo", "Tripo bones", "Tripo native bone naming"),
+               ("mixamo", "Mixamo bones",
+                "Mixamo-compatible naming, for game pipelines and "
+                "animation libraries")],
+        default="tripo")
     # The free check runs on its own job slot. If it shared job_id, the
     # finished check would count as this node's result: Run Graph would skip
     # the paid rig, and Animate would chain off the check's task id.
@@ -1069,6 +1076,7 @@ class TripoRigNode(TripoNode, bpy.types.Node):
 
         layout.separator(factor=0.3)
         layout.prop(self, "rig_type", text="")
+        layout.prop(self, "spec", text="")
         layout.prop(self, "out_format", text="")
         if self.rig_type != "biped":
             layout.label(text="Uses rig model v2.5", icon="INFO")
@@ -1161,6 +1169,27 @@ class TripoAnimateNode(TripoNode, bpy.types.Node):
 
         layout.separator(factor=0.3)
         layout.prop(self, "animation", text="")
+        rig_node = _upstream_node(self)
+        rt = getattr(rig_node, "rig_type", "") if rig_node is not None else ""
+        if rt and not self.existing_task.strip():
+            # Preset vocabulary depends on the rig: plain presets are biped;
+            # species rigs only take their own preset:<species>:* walks; the
+            # preset:biped:* catalogue needs the v1 (biped-only) rig model.
+            species = ("quadruped", "hexapod", "octopod", "serpentine",
+                       "aquatic")
+            warn = None
+            if rt == "avian":
+                warn = "No presets exist for avian rigs yet"
+            elif rt == "biped":
+                if any(self.animation.startswith(f"preset:{sp}:")
+                       for sp in species):
+                    warn = "That preset is for a different rig type"
+            elif not self.animation.startswith(f"preset:{rt}:"):
+                warn = f"{rt.title()} rigs only take preset:{rt}:* presets"
+            if warn:
+                box = layout.box()
+                box.alert = True
+                box.label(text=warn, icon="ERROR")
         layout.prop(self, "out_format", text="")
         layout.prop(self, "animate_in_place")
 

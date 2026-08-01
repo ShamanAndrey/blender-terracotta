@@ -164,7 +164,7 @@ need `model_version >= v2.0-20240919`; `geometry_quality` needs `>= v3.0`.
 | `convert_model` | `format` GLTF/USDZ/FBX/OBJ/STL/3MF, `texture_size` (2048, or 4096 for >=v2.0; must be smaller), `scale_factor`, `flatten_bottom`, `pivot_to_center_bottom`, `fbx_preset` blender/mixamo/3dsmax, `export_orientation` |
 | `stylize_model` | `style` lego\|voxel\|voronoi\|minecraft, `block_size` |
 | `refine_model` | `draft_model_task_id` |
-| `animate_rig` / `animate_retarget` | `rig_type`, `spec` mixamo\|tripo, animation presets |
+| `animate_rig` / `animate_retarget` | legacy v2 spellings; we now use the v3 routes below |
 
 ### v3 post-processing routes (from developers.tripo3d.ai, read 2026-08-01)
 v3 now has the full post-processing surface -- the "v2 only" note above is
@@ -199,6 +199,24 @@ image|model, `granularity` coarse|medium|fine (different vocabulary from
 mesh/segment!), free-text `hint` (doc example: "game character with sword
 and armor"), `transform` (16 floats, required for model). Output includes
 `seg_task_id` + `model_task_id`.
+
+### Animations (v3 routes, read 2026-08-01)
+- `POST /v3/animations/rig-check` -- free; `input`; returns `riggable` +
+  recommended `rig_type`.
+- `POST /v3/animations/rig` -- `input`, `model` (`v1.0-20240301` biped-only,
+  90+ presets; `v2.5-20260210` for the other six types), `rig_type`
+  biped|quadruped|hexapod|octopod|avian|serpentine|aquatic, `spec`
+  tripo|mixamo (bone naming), `out_format` glb|fbx. Doc example shows
+  30 credits vs our measured 25 on the legacy route -- re-measure.
+- `POST /v3/animations/retarget` -- `input` (RIG task), `animation` XOR
+  `animations[]`, `out_format`, `bake_animation` (glb only),
+  `export_with_geometry`, `animate_in_place`. Doc example 20 cr vs our
+  measured 10/animation -- re-measure.
+- **Preset vocabulary depends on the rig model**: v2.5 rigs take the 11
+  plain biped presets + per-species walks (`preset:quadruped:walk` etc.);
+  v1.0 biped rigs take the 101-item `preset:biped:*` catalogue (plain
+  presets also worked on a v1.0 rig, measured). **Avian has no presets.**
+  Full catalogue lives in costs.ANIMATION_ITEMS (117 ids).
 
 ### Mesh completion (`POST /v3/mesh/complete`)
 `input` = a mesh/segment task id; `part_names` (omit = all parts);
