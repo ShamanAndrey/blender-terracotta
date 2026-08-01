@@ -1635,6 +1635,15 @@ def test_money_guards(api, mock):
           found is not None and found.name == gen.name
           and found.id_data.name == ng.name)
 
+    # A server-reported failure must clean its stub out of history --
+    # failures don't bill, and their ids re-import nothing.
+    api._record({"task_id": "task-dead-01", "job": "job-dead-01",
+                 "kind": "generate", "time": 1})
+    api._forget_task("task-dead-01")
+    check("failed-task stub removed from history",
+          not any(e.get("task_id") == "task-dead-01"
+                  for e in api.history(limit=999)))
+
     # A billed task id must reach history even when polling dies right after
     # submit -- the id is the only free handle to work already paid for.
     mock.set_poll_failure(True)

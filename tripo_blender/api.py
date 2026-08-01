@@ -417,6 +417,7 @@ def _worker(job_id, key, name, poll_timeout, prompt, image, images, model,
             if status in ("failed", "cancelled", "canceled", "banned", "expired", "unknown"):
                 reason = data.get("error_message") or data
                 note(state="error", message=f"task {status}: {reason}")
+                _forget_task(task_id)
                 return
 
             time.sleep(3)
@@ -746,6 +747,30 @@ def _prune_thumbs(items):
         print(f"[tripo] thumbnail prune skipped: {e!r}")
 
 
+def _forget_task(task_id):
+    """Drop one task's history row.
+
+    Stub rows are written at submit so a crash can't lose a paid task; when
+    the server itself reports the task failed (failures don't bill), the
+    stub is noise that offers a re-import of nothing.
+    """
+    if not task_id:
+        return
+    with _history_lock:
+        try:
+            path = _history_path()
+            with open(path) as f:
+                items = json.load(f)
+            kept = [i for i in items if i.get("task_id") != task_id]
+            if len(kept) != len(items):
+                tmp = path + ".tmp"
+                with open(tmp, "w") as f:
+                    json.dump(kept, f, indent=1)
+                os.replace(tmp, path)
+        except OSError as e:
+            print(f"[tripo] could not prune failed task: {e!r}")
+
+
 def forget_history():
     try:
         os.remove(_history_path())
@@ -921,6 +946,7 @@ def _poll_and_import(job_id, flavor, task_id, key, name, poll_timeout, note,
                           "unknown"):
                 reason = data.get("error_message") or data
                 note(state="error", message=f"task {status}: {reason}")
+                _forget_task(task_id)
                 return
             time.sleep(3)
     except Exception as e:
@@ -1104,6 +1130,7 @@ def start_import(path, name=None, add_to_scene=False, poll_timeout=900):
                               "expired", "unknown"):
                     reason = data.get("error_message") or data
                     note(state="error", message=f"task {status}: {reason}")
+                    _forget_task(task_id)
                     return
                 time.sleep(2)
             note(state="error", message=f"timed out after {poll_timeout}s")
@@ -1370,6 +1397,7 @@ def start_prerig_check(source_task_id, name=None, poll_timeout=600):
                               "expired", "unknown"):
                     reason = data.get("error_message") or data
                     note(state="error", message=f"task {status}: {reason}")
+                    _forget_task(task_id)
                     return
                 time.sleep(2)
             note(state="error", message=f"timed out after {poll_timeout}s")
