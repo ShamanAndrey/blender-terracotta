@@ -58,6 +58,41 @@ def is_p1(model):
     return str(model or "").startswith("P1")
 
 
+# Which optional generation parameters each model accepts (docs 2026-08-01).
+# v2.5 predates the advanced block -- the docs say outright "do NOT use"
+# these with it; P1 takes the texture/size extras but none of the geometry
+# ones. Sending an unsupported field to a billed endpoint is never a no-op.
+_ADVANCED = {"texture_quality", "geometry_quality", "auto_size", "quad",
+             "smart_low_poly", "generate_parts", "compress"}
+
+
+def caps(model):
+    m = str(model or "")
+    if m.startswith("P1"):
+        return {"texture_quality", "auto_size", "compress", "export_uv"}
+    if m.startswith("v2.5"):
+        return {"export_uv"}
+    return _ADVANCED | {"export_uv"}
+
+
+def face_limit_range(model, quad=False, smart_low_poly=False,
+                     geometry_quality="standard"):
+    """Documented (min, max) for face_limit under the given options."""
+    if smart_low_poly:
+        return (500, 10000 if quad else 20000)
+    if is_p1(model):
+        return (50, 20000)
+    if quad:
+        return (1, 150000)
+    m = str(model or "")
+    ultra = geometry_quality == "detailed"
+    if m.startswith("v2.5"):
+        return (1, 500000)
+    if m.startswith("v3.0"):
+        return (1, 2000000 if ultra else 1000000)
+    return (1, 2000000 if ultra else 1500000)
+
+
 def base_cost(model, kind="text"):
     return _BASE.get(model, _BASE_DEFAULT)[kind]
 

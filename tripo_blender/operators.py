@@ -238,23 +238,44 @@ class TRIPO_OT_node_generate(bpy.types.Operator):
             self.report({"ERROR"}, "This node already has a job running")
             return {"CANCELLED"}
 
+        # Validate the face budget against the documented range for this
+        # exact setup before anything is billed.
+        if node.use_face_limit:
+            lo, hi = costs.face_limit_range(
+                node.model, quad=node.quad,
+                smart_low_poly=node.smart_low_poly,
+                geometry_quality=node.geometry_quality)
+            if not (lo <= node.face_limit <= hi):
+                self.report({"ERROR"},
+                            f"face_limit must be {lo:,}-{hi:,} for this setup")
+                return {"CANCELLED"}
+
         kw = dict(
             model=node.model,
             name=node.asset_name.strip() or None,
             texture=node.texture,
             pbr=node.pbr,
-            texture_quality=node.texture_quality,
-            auto_size=node.auto_size or None,
             face_limit=node.face_limit if node.use_face_limit else None,
         )
-        # P1 errors on these; api strips them too, but don't even send them.
-        if not costs.is_p1(node.model):
-            kw.update(
-                geometry_quality=node.geometry_quality,
-                quad=node.quad or None,
-                smart_low_poly=node.smart_low_poly or None,
-                generate_parts=node.generate_parts or None,
-            )
+        # Send only what this model documents. The api layer strips as a
+        # backstop, but the request should be right at the source.
+        allowed = costs.caps(node.model)
+        if "texture_quality" in allowed:
+            kw["texture_quality"] = node.texture_quality
+        if "geometry_quality" in allowed:
+            kw["geometry_quality"] = node.geometry_quality
+        if "auto_size" in allowed:
+            kw["auto_size"] = node.auto_size or None
+        if "quad" in allowed:
+            kw["quad"] = node.quad or None
+        if "smart_low_poly" in allowed:
+            kw["smart_low_poly"] = node.smart_low_poly or None
+        if "generate_parts" in allowed:
+            kw["generate_parts"] = node.generate_parts or None
+        if "export_uv" in allowed and not node.export_uv:
+            kw["export_uv"] = False
+        if "compress" in allowed and node.compress:
+            kw["compress"] = "geometry"
         if node.negative.strip():
             kw["negative_prompt"] = node.negative.strip()[:255]
         if node.mode in {"IMAGE", "MULTIVIEW"}:

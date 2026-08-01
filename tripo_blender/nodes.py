@@ -316,7 +316,7 @@ class TripoGenerateNode(TripoNode, bpy.types.Node):
         name="Autofix image",
         description="Let Tripo clean up a blurry or incomplete reference")
     use_face_limit: bpy.props.BoolProperty(name="Cap faces")
-    face_limit: bpy.props.IntProperty(name="Faces", default=10000, min=48,
+    face_limit: bpy.props.IntProperty(name="Faces", default=10000, min=50,
                                       max=2000000)
     quad: bpy.props.BoolProperty(name="Quad mesh",
                                  description="Returns FBX instead of glTF")
@@ -324,6 +324,13 @@ class TripoGenerateNode(TripoNode, bpy.types.Node):
     generate_parts: bpy.props.BoolProperty(
         name="Split into parts",
         description="Forces texture and PBR off -- an API restriction")
+    export_uv: bpy.props.BoolProperty(
+        name="Unwrap UVs", default=True,
+        description="UV unwrapping during generation. Off is faster and "
+                    "smaller; texturing unwraps later anyway")
+    compress: bpy.props.BoolProperty(
+        name="Compress (meshopt)",
+        description="Meshopt geometry compression for a smaller file")
     use_seeds: bpy.props.BoolProperty(name="Fix seed")
     seed: bpy.props.IntProperty(name="Seed", default=42, min=0)
     existing_task: bpy.props.StringProperty(
@@ -392,16 +399,20 @@ class TripoGenerateNode(TripoNode, bpy.types.Node):
         layout.prop(self, "show_advanced", toggle=True,
                     icon="TRIA_DOWN" if self.show_advanced else "TRIA_RIGHT")
         if self.show_advanced:
+            # Each model only sees the options it actually accepts -- the
+            # docs' per-model matrix, not one UI pretending to fit all.
+            allowed = costs.caps(self.model)
             box = layout.box()
             box.prop(self, "negative", text="Avoid")
 
             row = box.row(align=True)
             row.prop(self, "texture", toggle=True)
             row.prop(self, "pbr", toggle=True)
-            box.prop(self, "texture_quality", text="")
-
-            # P1 rejects these outright rather than ignoring them.
-            if not p1:
+            if "texture_quality" in allowed:
+                box.prop(self, "texture_quality", text="")
+                if self.texture_quality == "extreme":
+                    box.label(text="8K -- surcharge unverified", icon="INFO")
+            if "geometry_quality" in allowed:
                 box.prop(self, "geometry_quality", text="")
 
             # Image-only parameters, per the generation docs.
@@ -410,17 +421,24 @@ class TripoGenerateNode(TripoNode, bpy.types.Node):
                 box.prop(self, "orientation", text="Orient")
                 box.prop(self, "autofix")
 
-            box.prop(self, "auto_size")
+            if "auto_size" in allowed:
+                box.prop(self, "auto_size")
 
             col = box.column(align=True)
             col.prop(self, "use_face_limit")
             sub = col.row()
             sub.enabled = self.use_face_limit
             sub.prop(self, "face_limit")
-            if p1 and self.use_face_limit and not (48 <= self.face_limit <= 20000):
-                col.label(text="P1 allows 48-20000", icon="ERROR")
+            if self.use_face_limit:
+                lo, hi = costs.face_limit_range(
+                    self.model, quad=self.quad,
+                    smart_low_poly=self.smart_low_poly,
+                    geometry_quality=self.geometry_quality)
+                if not (lo <= self.face_limit <= hi):
+                    col.label(text=f"This setup allows {lo:,}-{hi:,}",
+                              icon="ERROR")
 
-            if not p1:
+            if "quad" in allowed:
                 col = box.column(align=True)
                 col.prop(self, "quad")
                 if self.quad:
@@ -431,9 +449,18 @@ class TripoGenerateNode(TripoNode, bpy.types.Node):
                     col.label(text="Forces texture off", icon="ERROR")
                     if self.quad:
                         col.label(text="Incompatible with quad", icon="CANCEL")
-            else:
+            elif p1:
                 box.label(text="P1: quad, parts, low-poly and", icon="INFO")
                 box.label(text="geometry quality not supported")
+            else:
+                box.label(text="v2.5 predates the advanced options",
+                          icon="INFO")
+
+            row = box.row(align=True)
+            if "export_uv" in allowed:
+                row.prop(self, "export_uv", toggle=True)
+            if "compress" in allowed:
+                row.prop(self, "compress", toggle=True)
 
             col = box.column(align=True)
             col.prop(self, "use_seeds")

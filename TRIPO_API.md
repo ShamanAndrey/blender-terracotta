@@ -166,6 +166,31 @@ need `model_version >= v2.0-20240919`; `geometry_quality` needs `>= v3.0`.
 | `refine_model` | `draft_model_task_id` |
 | `animate_rig` / `animate_retarget` | legacy v2 spellings; we now use the v3 routes below |
 
+### Generation parameters, per model (docs read 2026-08-01)
+Docs split generation into **H Series** (v3.1 / v3.0 / v2.5) and **P Series**
+(P1) tabs on the same endpoints.
+- **v2.5 accepts NONE of the advanced params** -- texture_quality,
+  geometry_quality, auto_size, quad, smart_low_poly, generate_parts,
+  compress are all documented ">= v3.0 only" ("do NOT use with v2.5").
+- **P1**: prompt/seeds/face_limit **50-20,000** (was 48 in our code; docs
+  advise >=150 simple / >=250 complex for quality), texture, pbr,
+  texture_quality (incl. extreme), auto_size, compress, export_uv. Still no
+  quad / smart_low_poly / generate_parts / geometry_quality.
+- **texture_quality gains `extreme`** (8K): "costs additional credits
+  compared to detailed" -- exact surcharge unpublished; we quote +20 as a
+  floor and mark it unverified.
+- **face_limit ceilings**: v3.1 1.5M (2M Ultra) - v3.0 1M (2M Ultra) -
+  v2.5 500k - quad 150k (default 10k when unset) - smart_low_poly fixed
+  500-20,000 (quad 500-10,000) on every model.
+- `export_uv` (default true) is valid on every model; `compress:
+  "geometry"` = meshopt.
+- Input shapes moved: image-to-model takes `input` (file_token | URL |
+  task_id of a text_to_image/image_to_image task); multiview takes
+  `inputs` as view-key objects, 4 positional strings, or a single
+  [{"task_id": ...}]. Our legacy `file`/`files` dict shape still works
+  (measured: the knight) but is no longer documented -- migrate when it
+  breaks, not before.
+
 ### v3 post-processing routes (from developers.tripo3d.ai, read 2026-08-01)
 v3 now has the full post-processing surface -- the "v2 only" note above is
 historical. Routes: `/v3/models/texture`, `/v3/models/convert`,

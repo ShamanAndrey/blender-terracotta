@@ -53,7 +53,10 @@ _timer_running = False
 # P1 rejects anything outside its supported list with an error, rather than
 # ignoring it. These are the documented exclusions.
 P1_UNSUPPORTED = {"quad", "smart_low_poly", "generate_parts", "geometry_quality"}
-P1_FACE_LIMIT = (48, 20000)
+P1_FACE_LIMIT = (50, 20000)
+# v2.5 predates the advanced parameter block entirely (docs: "do NOT use").
+V25_UNSUPPORTED = {"texture_quality", "geometry_quality", "auto_size", "quad",
+                   "smart_low_poly", "generate_parts", "compress"}
 
 
 def short_model(model):
@@ -200,6 +203,13 @@ def _submit(key, prompt=None, image=None, images=None, model=None,
     for k, v in (extra or {}).items():
         if v is not None:
             extras[k] = v
+
+    if str(model or DEFAULT_V3_MODEL).startswith("v2.5"):
+        dropped = [k for k in V25_UNSUPPORTED if k in extras]
+        for k in V25_UNSUPPORTED:
+            extras.pop(k, None)
+        if dropped:
+            print(f"[tripo] v2.5 does not support {', '.join(dropped)} -- dropped")
 
     # P1 errors on unsupported parameters instead of ignoring them, so strip
     # them rather than letting the request fail.

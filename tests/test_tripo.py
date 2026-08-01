@@ -1971,6 +1971,87 @@ def test_google_preview_survives_restart(api, mock):
     bpy.data.node_groups.remove(ng)
 
 
+def test_model_capability_matrix(api, mock):
+    section("Per-model generation options")
+
+    from tripo_blender import costs as C, nodes
+
+    check("v2.5 accepts no advanced params",
+          C.caps("v2.5-20250123") == {"export_uv"},
+          str(C.caps("v2.5-20250123")))
+    check("P1 takes texture/size but not geometry extras",
+          "texture_quality" in C.caps("P1-20260311")
+          and "quad" not in C.caps("P1-20260311"))
+    check("face range: P1", C.face_limit_range("P1-20260311") == (50, 20000))
+    check("face range: v3.1 ultra",
+          C.face_limit_range("v3.1-20260211",
+                             geometry_quality="detailed") == (1, 2000000))
+    check("face range: quad cap",
+          C.face_limit_range("v3.1-20260211", quad=True) == (1, 150000))
+    check("face range: smart low poly quad",
+          C.face_limit_range("v3.1-20260211", quad=True,
+                             smart_low_poly=True) == (500, 10000))
+
+    ng = bpy.data.node_groups.new("CapsGraph", nodes.TREE_ID)
+    gen = ng.nodes.new("TripoGenerateNode")
+    gen.prompt = "a chest"
+
+    # v2.5 with everything switched on must send none of it.
+    gen.model = "v2.5-20250123"
+    gen.texture_quality = "detailed"
+    gen.geometry_quality = "detailed"
+    gen.auto_size = True
+    gen.quad = True
+    gen.smart_low_poly = True
+    n = mock.submit_count()
+    bpy.ops.tripo.node_generate(node_name=gen.name, tree_name=ng.name)
+    mock.wait_for_submit(n)
+    body = mock.last_body()
+    for field in ("texture_quality", "geometry_quality", "auto_size", "quad",
+                  "smart_low_poly", "generate_parts", "compress"):
+        check(f"v2.5 omits {field}", field not in body, str(body))
+    wait_for(api, gen.job_id, {"done", "error"})
+    settle(api)
+
+    # v3.1: extreme tier, export_uv off and compress propagate.
+    gen.model = "v3.1-20260211"
+    gen.quad = False
+    gen.smart_low_poly = False
+    gen.texture_quality = "extreme"
+    gen.export_uv = False
+    gen.compress = True
+    gen.last_task = ""
+    n = mock.submit_count()
+    bpy.ops.tripo.node_generate(node_name=gen.name, tree_name=ng.name)
+    mock.wait_for_submit(n)
+    body = mock.last_body()
+    check("extreme texture tier sent",
+          body.get("texture_quality") == "extreme", str(body))
+    check("export_uv off is sent", body.get("export_uv") is False, str(body))
+    check("compress sends the documented value",
+          body.get("compress") == "geometry", str(body))
+    wait_for(api, gen.job_id, {"done", "error"})
+    settle(api)
+
+    # Face-limit validation refuses out-of-range submissions unbilled.
+    gen.export_uv = True
+    gen.compress = False
+    gen.use_face_limit = True
+    gen.quad = True
+    gen.face_limit = 200000
+    gen.last_task = ""
+    n = mock.submit_count()
+    try:
+        bpy.ops.tripo.node_generate(node_name=gen.name, tree_name=ng.name)
+        rejected = False
+    except RuntimeError:
+        rejected = True
+    check("quad face limit over 150k rejected", rejected)
+    check("no out-of-range task billed", mock.submit_count() == n)
+
+    bpy.data.node_groups.remove(ng)
+
+
 def test_view_redo_and_thumb_persistence(api, mock):
     section("Per-view redo and Tripo preview persistence")
 
@@ -2243,6 +2324,7 @@ def main():
         test_panel_retirement(api, mock)
         test_recover_and_prune(api, mock)
         test_money_guards(api, mock)
+        test_model_capability_matrix(api, mock)
         test_hardening(api, mock)
         test_view_image(api, mock)
         test_google_preview_survives_restart(api, mock)
