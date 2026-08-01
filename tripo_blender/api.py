@@ -415,7 +415,8 @@ def _worker(job_id, key, name, poll_timeout, prompt, image, images, model,
                 return
 
             if status in ("failed", "cancelled", "canceled", "banned", "expired", "unknown"):
-                note(state="error", message=f"task {status}: {data}")
+                reason = data.get("error_message") or data
+                note(state="error", message=f"task {status}: {reason}")
                 return
 
             time.sleep(3)
@@ -918,7 +919,8 @@ def _poll_and_import(job_id, flavor, task_id, key, name, poll_timeout, note,
 
             if status in ("failed", "cancelled", "canceled", "banned", "expired",
                           "unknown"):
-                note(state="error", message=f"task {status}: {data}")
+                reason = data.get("error_message") or data
+                note(state="error", message=f"task {status}: {reason}")
                 return
             time.sleep(3)
     except Exception as e:
@@ -1100,7 +1102,8 @@ def start_import(path, name=None, add_to_scene=False, poll_timeout=900):
                     return
                 if status in ("failed", "cancelled", "canceled", "banned",
                               "expired", "unknown"):
-                    note(state="error", message=f"task {status}: {data}")
+                    reason = data.get("error_message") or data
+                    note(state="error", message=f"task {status}: {reason}")
                     return
                 time.sleep(2)
             note(state="error", message=f"timed out after {poll_timeout}s")
@@ -1292,7 +1295,8 @@ def start_prerig_check(source_task_id, name=None, poll_timeout=600):
                     return
                 if status in ("failed", "cancelled", "canceled", "banned",
                               "expired", "unknown"):
-                    note(state="error", message=f"task {status}: {data}")
+                    reason = data.get("error_message") or data
+                    note(state="error", message=f"task {status}: {reason}")
                     return
                 time.sleep(2)
             note(state="error", message=f"timed out after {poll_timeout}s")

@@ -733,6 +733,13 @@ class TRIPO_OT_node_animate(bpy.types.Operator):
             self.report({"ERROR"}, "Connect a finished Rig node")
             return {"CANCELLED"}
         try:
+            rig_node = nodes._upstream_node(node)
+            if getattr(rig_node, "spec", "") == "mixamo":
+                self.report({"ERROR"},
+                            "Tripo presets can't retarget a Mixamo-bone rig "
+                            "(API limit). Re-rig with Tripo bones, or use "
+                            "animations from mixamo.com")
+                return {"CANCELLED"}
             node.job_id = api.start_retarget(
                 rig_task, [node.animation], out_format=node.out_format,
                 animate_in_place=node.animate_in_place,

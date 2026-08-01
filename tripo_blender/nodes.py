@@ -1139,6 +1139,10 @@ class TripoRigNode(TripoNode, bpy.types.Node):
         layout.separator(factor=0.3)
         layout.prop(self, "rig_type", text="")
         layout.prop(self, "spec", text="")
+        if self.spec == "mixamo":
+            box = layout.box()
+            box.label(text="Tripo presets can't retarget", icon="INFO")
+            box.label(text="Mixamo rigs -- use mixamo.com")
         layout.prop(self, "out_format", text="")
         if self.rig_type != "biped":
             layout.label(text="Uses rig model v2.5", icon="INFO")
@@ -1240,7 +1244,11 @@ class TripoAnimateNode(TripoNode, bpy.types.Node):
             species = ("quadruped", "hexapod", "octopod", "serpentine",
                        "aquatic")
             warn = None
-            if rt == "avian":
+            if getattr(rig_node, "spec", "") == "mixamo":
+                # Measured (error 1004): Tripo's preset retarget refuses
+                # mixamo-spec rigs outright. Undocumented.
+                warn = "Presets don't work on Mixamo rigs"
+            elif rt == "avian":
                 warn = "No presets exist for avian rigs yet"
             elif rt == "biped":
                 if any(self.animation.startswith(f"preset:{sp}:")

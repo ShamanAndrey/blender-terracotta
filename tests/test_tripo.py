@@ -985,6 +985,20 @@ def test_rigging(api, mock):
     wait_for(api, rig.job_id, {"done", "error"})
     settle(api)
 
+    # A Mixamo-spec rig can't take Tripo presets (API error 1004, measured)
+    # -- the operator must refuse before the server round-trip.
+    rig.spec = "mixamo"
+    n = mock.submit_count()
+    try:
+        bpy.ops.tripo.node_animate(node_name=anim.name,
+                                   tree_name=anim.id_data.name)
+        refused = False
+    except RuntimeError as e:
+        refused = "Mixamo" in str(e)
+    check("retarget refuses a mixamo-spec rig upstream", refused)
+    check("no doomed retarget submitted", mock.submit_count() == n)
+    rig.spec = "tripo"
+
     # Validation -- unknown presets must fail loudly, not be filtered out.
     raised_msg = ""
     try:

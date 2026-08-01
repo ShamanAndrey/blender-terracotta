@@ -242,6 +242,11 @@ and armor"), `transform` (16 floats, required for model). Output includes
   v1.0 biped rigs take the 101-item `preset:biped:*` catalogue (plain
   presets also worked on a v1.0 rig, measured). **Avian has no presets.**
   Full catalogue lives in costs.ANIMATION_ITEMS (117 ids).
+- **`spec: mixamo` rigs cannot be retargeted by Tripo presets at all** --
+  error 1004 "mixamo bone retarget not supported" (measured, unbilled,
+  undocumented). Mixamo rigs are for external animation (mixamo.com).
+- Rig price **measured 25 on the v3 route** -- the doc example's 30 is
+  wrong; our quote stands.
 
 ### Mesh completion (`POST /v3/mesh/complete`)
 `input` = a mesh/segment task id; `part_names` (omit = all parts);
