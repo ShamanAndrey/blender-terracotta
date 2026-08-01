@@ -26,12 +26,18 @@ def enable_addon():
     bpy.ops.preferences.addon_enable(module="tripo_blender")
 
 
-def frame(tree, label, x, y, text):
-    """A labelled frame so each example explains itself on the canvas."""
+def frame(tree, label, x, y, text, width=460):
+    """A labelled frame so each example explains itself on the canvas.
+
+    Height follows the text: a fixed height clipped everything past the
+    first line, which read as an unfinished sentence on the canvas.
+    """
     note = tree.nodes.new("NodeFrame")
     note.label = label
     note.location = (x, y)
-    note.width, note.height = 460, 120
+    lines = text.count("\n") + 1
+    note.width = width
+    note.height = 64 + 24 * lines
     note.use_custom_color = True
     note.color = (0.18, 0.16, 0.22)
     body = bpy.data.texts.new(f"{label} notes")
@@ -51,49 +57,49 @@ def example_start_here():
     numbered walkthrough, so reading the canvas IS the tutorial."""
     t = new_tree("0 - Start Here")
 
-    frame(t, "Start here -- your first AI asset", -740, 700,
-          "This graph is ready to run. Three steps:\n"
-          "  1. Set your API keys (step 1 below).\n"
-          "  2. Press Generate on the middle node.\n"
-          "  3. Press Import when it finishes.\n"
-          "Every button shows its price before you spend anything.")
+    frame(t, "Start here -- your first AI asset", -750, 760, width=560,
+          text="This graph is ready to run. Three steps:\n"
+               "  1. Set your API keys (step 1 below).\n"
+               "  2. Press Generate on the middle node.\n"
+               "  3. Press Import when it finishes.\n"
+               "Every button shows its price before you spend anything.")
 
-    frame(t, "1 -- Keys", -1180, 420,
-          "This node shows whether your keys work.\n"
-          "Click 'Set API keys' here or the key icon\n"
-          "in this editor's header.\n"
-          "Tripo pays for 3D, Google pays for images.\n"
-          "Keys stay on this machine -- never in the file.")
+    frame(t, "1 -- Keys", -1200, 440, width=400,
+          text="This node shows whether your keys work.\n"
+               "Click 'Set API keys' here or the key icon\n"
+               "in this editor's header.\n"
+               "Tripo pays for 3D, Google pays for images.\n"
+               "Keys stay on this machine -- never in the file.")
     acct = t.nodes.new("TripoAccountNode")
-    acct.location = (-1140, 180)
+    acct.location = (-1160, 160)
 
-    frame(t, "2 -- Generate (about 20 credits)", -740, 420,
-          "Describe anything, or keep the barrel.\n"
-          "More inputs? The Examples menu in the header\n"
-          "has image-to-3D, four-view, rig-and-animate\n"
-          "and cleanup workflows.")
+    frame(t, "2 -- Generate (about 20 credits)", -750, 440, width=400,
+          text="Describe anything, or keep the barrel.\n"
+               "More inputs? The Examples menu in the header\n"
+               "has image-to-3D, four-view, rig-and-animate\n"
+               "and cleanup workflows.")
     gen = t.nodes.new("TripoGenerateNode")
-    gen.location = (-700, 180)
+    gen.location = (-710, 160)
     gen.mode = "TEXT"
     gen.prompt = "a weathered wooden barrel with iron bands"
     gen.asset_name = "Barrel"
 
-    frame(t, "3 -- Import (free)", -300, 420,
-          "Brings the finished mesh into your scene.\n"
-          "Placement, decimation and asset-library\n"
-          "marking are options on this node.")
+    frame(t, "3 -- Import (free)", -300, 440, width=400,
+          text="Brings the finished mesh into your scene.\n"
+               "Placement, decimation and asset-library\n"
+               "marking are options on this node.")
     imp = t.nodes.new("TripoImportNode")
-    imp.location = (-260, 180)
+    imp.location = (-260, 160)
     imp.asset_name = "Barrel"
     t.links.new(gen.outputs["Asset"], imp.inputs["Asset"])
 
-    frame(t, "Good to know", -740, -160,
-          "Run Graph (header) runs a whole chain in order and\n"
-          "shows the total cost before starting.\n"
-          "Press N for the sidebar: live Jobs, and a Library of\n"
-          "everything you've generated -- re-importing is free.\n"
-          "A node's own button always forces a re-run;\n"
-          "Run Graph skips nodes that already have results.")
+    frame(t, "Good to know", -750, -420, width=560,
+          text="Run Graph (header) runs a whole chain in order and\n"
+               "shows the total cost before starting.\n"
+               "Press N for the sidebar: live Jobs, and a Library of\n"
+               "everything you've generated -- re-importing is free.\n"
+               "A node's own button always forces a re-run;\n"
+               "Run Graph skips nodes that already have results.")
     return t
 
 
