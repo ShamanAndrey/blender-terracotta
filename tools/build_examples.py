@@ -46,6 +46,57 @@ def new_tree(name):
     return tree
 
 
+def example_start_here():
+    """The graph a brand-new user lands on: a working chain wrapped in a
+    numbered walkthrough, so reading the canvas IS the tutorial."""
+    t = new_tree("0 - Start Here")
+
+    frame(t, "Start here -- your first AI asset", -740, 700,
+          "This graph is ready to run. Three steps:\n"
+          "  1. Set your API keys (step 1 below).\n"
+          "  2. Press Generate on the middle node.\n"
+          "  3. Press Import when it finishes.\n"
+          "Every button shows its price before you spend anything.")
+
+    frame(t, "1 -- Keys", -1180, 420,
+          "This node shows whether your keys work.\n"
+          "Click 'Set API keys' here or the key icon\n"
+          "in this editor's header.\n"
+          "Tripo pays for 3D, Google pays for images.\n"
+          "Keys stay on this machine -- never in the file.")
+    acct = t.nodes.new("TripoAccountNode")
+    acct.location = (-1140, 180)
+
+    frame(t, "2 -- Generate (about 20 credits)", -740, 420,
+          "Describe anything, or keep the barrel.\n"
+          "More inputs? The Examples menu in the header\n"
+          "has image-to-3D, four-view, rig-and-animate\n"
+          "and cleanup workflows.")
+    gen = t.nodes.new("TripoGenerateNode")
+    gen.location = (-700, 180)
+    gen.mode = "TEXT"
+    gen.prompt = "a weathered wooden barrel with iron bands"
+    gen.asset_name = "Barrel"
+
+    frame(t, "3 -- Import (free)", -300, 420,
+          "Brings the finished mesh into your scene.\n"
+          "Placement, decimation and asset-library\n"
+          "marking are options on this node.")
+    imp = t.nodes.new("TripoImportNode")
+    imp.location = (-260, 180)
+    imp.asset_name = "Barrel"
+    t.links.new(gen.outputs["Asset"], imp.inputs["Asset"])
+
+    frame(t, "Good to know", -740, -160,
+          "Run Graph (header) runs a whole chain in order and\n"
+          "shows the total cost before starting.\n"
+          "Press N for the sidebar: live Jobs, and a Library of\n"
+          "everything you've generated -- re-importing is free.\n"
+          "A node's own button always forces a re-run;\n"
+          "Run Graph skips nodes that already have results.")
+    return t
+
+
 def example_text_to_3d():
     t = new_tree("1 - Text to 3D")
     frame(t, "Text to 3D", -700, 460,
@@ -193,6 +244,7 @@ def example_export():
 
 
 BUILDERS = (
+    example_start_here,
     example_text_to_3d,
     example_reference_images,
     example_image_to_3d,
