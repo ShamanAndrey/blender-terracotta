@@ -12,7 +12,7 @@ depends on it.
 bl_info = {
     "name": "Terracotta",
     "author": "CD Crow",
-    "version": (1, 0),
+    "version": (1, 1),
     # UILayout.progress, temp_override and wm.obj_import are all 4.0+ --
     # on 3.x the Jobs panel would crash exactly while a paid job is running.
     "blender": (4, 0, 0),
