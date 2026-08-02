@@ -5,7 +5,7 @@ and any image upload -- so clicking Generate never freezes the UI and the MCP
 socket (180s timeout) never stalls. The finished GLB is imported on the main
 thread from a timer, since bpy is not thread-safe.
 
-    from tripo_blender import api
+    from terracotta import api
     job = api.start(prompt="a cute cat")   # returns a job id immediately
     api.status(job)                        # poll until state == "done"
 """

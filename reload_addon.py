@@ -25,8 +25,8 @@ import bpy
 
 import os
 ZIP = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                   "tripo_blender.zip")
-ADDON = "tripo_blender"
+                   "terracotta.zip")
+ADDON = "terracotta"
 
 
 def reload_addon(zip_path=ZIP):

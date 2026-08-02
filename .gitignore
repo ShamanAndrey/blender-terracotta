@@ -1,5 +1,5 @@
 # Build artifact -- rebuilt by tools/build_zip.py
-/tripo_blender.zip
+/terracotta.zip
 
 # Python
 __pycache__/
@@ -9,12 +9,12 @@ __pycache__/
 .DS_Store
 
 # Working scene files and renders from dev sessions live at the repo root;
-# the addon's bundled datablocks (tripo_blender/*.blend) stay tracked.
+# the addon's bundled datablocks (terracotta/*.blend) stay tracked.
 /*.blend
 /*.blend1
 /*.png
 
-# Pre-package prototypes, superseded by tripo_blender/. Kept on disk for
+# Pre-package prototypes, superseded by terracotta/. Kept on disk for
 # reference, out of history.
 /tripo.py
 /meshtools.py

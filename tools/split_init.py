@@ -11,7 +11,7 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PKG = os.path.join(ROOT, "tripo_blender")
+PKG = os.path.join(ROOT, "terracotta")
 SRC = os.path.join(PKG, "__init__.py")
 
 DEST = {
@@ -170,7 +170,7 @@ def main():
     # ---- targeted transforms on moved code --------------------------------
     def transform(module, name, text):
         if module == "panels" and name == "TRIPO_PT_main":
-            # __name__ is "tripo_blender.panels" after the move; the addon
+            # __name__ is "terracotta.panels" after the move; the addon
             # prefs are registered under the package name.
             text = text.replace("addons[__name__]", "addons[__package__]")
         if name == "TRIPO_OT_generate_image":
@@ -213,7 +213,7 @@ def main():
 A companion to the blender-mcp addon rather than a patch to it, so updating that
 addon can't wipe this. Everything here is also callable from Claude over MCP:
 
-    from tripo_blender import api, meshtools
+    from terracotta import api, meshtools
 """
 
 bl_info = {

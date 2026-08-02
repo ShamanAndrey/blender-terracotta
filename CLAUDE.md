@@ -3,7 +3,7 @@
 Generate 3D assets with Tripo and build scenes in a live Blender session over
 MCP.
 
-**The `tripo_blender/` plugin is fully standalone** — verified in a factory
+**The `terracotta/` plugin is fully standalone** — verified in a factory
 Blender with nothing else installed. blender-mcp is only the bridge that lets
 Claude drive Blender in these sessions; end users never need it.
 
@@ -33,7 +33,7 @@ first when things error.
 Everything runs through `mcp__blender__execute_blender_code`:
 
 ```python
-from tripo_blender import api, meshtools, build
+from terracotta import api, meshtools, build
 ```
 
 Detailed workflow lives in `.claude/skills/tripo-blender/SKILL.md`.
@@ -60,7 +60,7 @@ heavy. Expect ~1.4M polys per asset on v3.1.
 ### Build manufactured objects, generate organic ones
 
 Doors, window frames, picture frames, trim, shelves, plain panels — build them
-with `tripo_blender.build`. These are diffusion models and they are bad at
+with `terracotta.build`. These are diffusion models and they are bad at
 making things even and perfect; a generated door comes back subtly warped, and
 the wobble reads as wrong precisely because the real object is machine-made.
 Built geometry is exactly straight, free, and sized to the scene.
@@ -113,7 +113,7 @@ which produced what.
 
 | Path | What |
 | --- | --- |
-| `tripo_blender/` | The addon: `api.py` (Tripo bridge), `google_api.py` (Gemini images), `nodes.py` (node graph), `operators.py`, `panels.py`, `runner.py` (graph execution), `workspace.py` (workspace + examples), `costs.py` (all pricing), `meshtools.py`, `build.py`, `utils.py`, `__init__.py` (wiring only). Package with `tools/build_zip.py` — it globs, never hand-list files |
+| `terracotta/` | The addon: `api.py` (Tripo bridge), `google_api.py` (Gemini images), `nodes.py` (node graph), `operators.py`, `panels.py`, `runner.py` (graph execution), `workspace.py` (workspace + examples), `costs.py` (all pricing), `meshtools.py`, `build.py`, `utils.py`, `__init__.py` (wiring only). Package with `tools/build_zip.py` — it globs, never hand-list files |
 | `.claude/skills/tripo-blender/` | Workflow skill |
 | `TRIPO_API.md` | API reference |
 | `ROADMAP.md` | Where this is going |

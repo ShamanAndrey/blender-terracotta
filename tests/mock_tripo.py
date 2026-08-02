@@ -17,7 +17,7 @@ import types
 import urllib.error
 import urllib.parse
 
-from tripo_blender import api
+from terracotta import api
 
 # Recorded requests: list of (url, payload). Payload is None for GETs.
 calls = []
@@ -356,7 +356,7 @@ def _b64_png():
 
 
 def install_google():
-    from tripo_blender import google_api
+    from terracotta import google_api
     if _google_saved:
         return
     _google_saved["_request"] = google_api._request
@@ -367,7 +367,7 @@ def install_google():
 
 
 def uninstall_google():
-    from tripo_blender import google_api
+    from terracotta import google_api
     if not _google_saved:
         return
     google_api._request = _google_saved["_request"]

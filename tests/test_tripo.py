@@ -17,7 +17,7 @@ import bpy
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_TESTS)
 sys.path.insert(0, _TESTS)
-# Put the project root FIRST so `tripo_blender` resolves to the source being
+# Put the project root FIRST so `terracotta` resolves to the source being
 # edited, not the copy installed in Blender's addons folder. Without this the
 # suite silently tests stale code.
 sys.path.insert(0, _ROOT)
@@ -44,17 +44,17 @@ def install_source():
     """
     import glob
     import zipfile
-    zip_path = os.path.join(tempfile.gettempdir(), "tripo_blender_test.zip")
+    zip_path = os.path.join(tempfile.gettempdir(), "terracotta_test.zip")
     # Glob, never a hardcoded list: a stale list silently tests a partial
     # addon, which is how a missing module went unnoticed once already.
     files = []
     for pattern in ("*.py", "*.blend"):
-        files.extend(glob.glob(os.path.join(_ROOT, "tripo_blender", pattern)))
+        files.extend(glob.glob(os.path.join(_ROOT, "terracotta", pattern)))
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         for full in sorted(files):
-            z.write(full, os.path.join("tripo_blender", os.path.basename(full)))
+            z.write(full, os.path.join("terracotta", os.path.basename(full)))
     bpy.ops.preferences.addon_install(filepath=zip_path, overwrite=True)
-    for mod in [m for m in list(sys.modules) if m.startswith("tripo_blender")]:
+    for mod in [m for m in list(sys.modules) if m.startswith("terracotta")]:
         del sys.modules[mod]
     return zip_path
 
@@ -63,16 +63,16 @@ def setup():
     """Install from source, enable the addon, and mock the network."""
     install_source()
     try:
-        bpy.ops.preferences.addon_enable(module="tripo_blender")
+        bpy.ops.preferences.addon_enable(module="terracotta")
     except Exception as e:
         print("could not enable addon:", e)
         raise
 
-    import tripo_blender
-    print("testing:", os.path.dirname(os.path.abspath(tripo_blender.__file__)))
+    import terracotta
+    print("testing:", os.path.dirname(os.path.abspath(terracotta.__file__)))
 
     import mock_tripo
-    from tripo_blender import api
+    from terracotta import api
     mock_tripo.install()
     mock_tripo.install_google()
 
@@ -248,7 +248,7 @@ def test_full_cycle(api, mock):
 def test_output_field_names(api, mock):
     section("Response field names")
 
-    from tripo_blender import api as _api
+    from terracotta import api as _api
     v3 = {"model_url": "u", "rendered_image_url": "p"}
     v2 = {"pbr_model": "u", "rendered_image": "p"}
     check("v3 model field understood", _api._model_url({"output": v3}) == "u")
@@ -261,7 +261,7 @@ def test_output_field_names(api, mock):
 def test_documented_constraints(api, mock):
     section("Documented API constraints")
 
-    from tripo_blender import api as _api
+    from terracotta import api as _api
 
     # generate_parts is incompatible with texture/pbr -- the API silently
     # drops texturing rather than erroring, which cost us a confusing debug.
@@ -290,7 +290,7 @@ def test_documented_constraints(api, mock):
 def test_p1_constraints(api, mock):
     section("P1 model constraints")
 
-    from tripo_blender import api as _api
+    from terracotta import api as _api
 
     # P1 returns an error for unsupported params rather than ignoring them,
     # and our panel always sends geometry_quality -- so they must be stripped.
@@ -355,7 +355,7 @@ def test_history(api, mock):
 def test_nodes(api, mock):
     section("Node graph")
 
-    from tripo_blender import nodes
+    from terracotta import nodes
     ng = bpy.data.node_groups.new("TestGraph", nodes.TREE_ID)
     gen = ng.nodes.new("TripoGenerateNode")
     post = ng.nodes.new("TripoPostNode")
@@ -389,7 +389,7 @@ def test_nodes(api, mock):
 def test_node_options(api, mock):
     section("Node options")
 
-    from tripo_blender import nodes
+    from terracotta import nodes
 
     ng = bpy.data.node_groups.new("OptGraph", nodes.TREE_ID)
     gen = ng.nodes.new("TripoGenerateNode")
@@ -422,7 +422,7 @@ def test_node_options(api, mock):
 def test_generation_param_scope(api, mock):
     section("Parameter scope")
 
-    from tripo_blender import nodes
+    from terracotta import nodes
     ng = bpy.data.node_groups.new("ScopeGraph", nodes.TREE_ID)
     gen = ng.nodes.new("TripoGenerateNode")
 
@@ -478,7 +478,7 @@ def test_generation_param_scope(api, mock):
 def test_import_model(api, mock):
     section("Import own model (STS + import_model)")
 
-    from tripo_blender import api as _api
+    from terracotta import api as _api
 
     check("glb is an accepted upload format", "glb" in _api.MODEL_UPLOAD_FORMATS)
     raised = False
@@ -531,7 +531,7 @@ def test_import_model(api, mock):
 def test_export(api, mock):
     section("Export / convert")
 
-    from tripo_blender import nodes
+    from terracotta import nodes
     import tempfile as _tf
 
     ng = bpy.data.node_groups.new("ExportGraph", nodes.TREE_ID)
@@ -628,8 +628,8 @@ def test_export(api, mock):
 def test_graph_order(api, mock):
     section("Graph execution order")
 
-    import tripo_blender as tb
-    from tripo_blender import nodes
+    import terracotta as tb
+    from terracotta import nodes
 
     ng = bpy.data.node_groups.new("OrderGraph", nodes.TREE_ID)
     gen = ng.nodes.new("TripoGenerateNode")
@@ -674,8 +674,8 @@ def test_graph_order(api, mock):
 def test_task_persistence(api, mock):
     section("Task id persistence")
 
-    import tripo_blender as tb
-    from tripo_blender import nodes
+    import terracotta as tb
+    from terracotta import nodes
 
     ng = bpy.data.node_groups.new("PersistGraph", nodes.TREE_ID)
     src = ng.nodes.new("TripoSourceNode")
@@ -772,7 +772,7 @@ def test_history_covers_all_kinds(api, mock):
 def test_google_images(api, mock):
     section("Google image generation")
 
-    from tripo_blender import google_api as G, nodes
+    from terracotta import google_api as G, nodes
 
     # Tripo must no longer expose image generation at all.
     for gone in ("start_text_to_image", "start_generate_image",
@@ -893,7 +893,7 @@ def google_api_generate(node):
 def test_rigging(api, mock):
     section("Rigging and animation")
 
-    from tripo_blender import api as _api, nodes, costs as C
+    from terracotta import api as _api, nodes, costs as C
 
     check("prerig check is free", C.POST["animate_prerigcheck"] == 0)
     check("rig costs 25", C.POST["animate_rig"] == 25)
@@ -1066,7 +1066,7 @@ def test_all_spend_buttons_guarded(api, mock):
 
     import inspect
     import re
-    from tripo_blender import nodes
+    from terracotta import nodes
 
     # Buttons that cost money. Free ones (check, import, frame) are exempt.
     SPENDING = {
@@ -1100,7 +1100,7 @@ def test_all_spend_buttons_guarded(api, mock):
     # Panel generation was retired: exactly one generation code path (the
     # graph) is left to keep correct. The panel's duplicate path drifted
     # twice before being removed.
-    import tripo_blender as tb
+    import terracotta as tb
     for gone in ("TRIPO_OT_generate_text", "TRIPO_OT_generate_image",
                  "TRIPO_OT_generate_multiview"):
         check(f"panel operator {gone} removed", not hasattr(tb, gone))
@@ -1111,8 +1111,8 @@ def test_all_spend_buttons_guarded(api, mock):
 def test_improve_selected(api, mock):
     section("Improve an existing object")
 
-    import tripo_blender as tb
-    from tripo_blender import nodes
+    import terracotta as tb
+    from terracotta import nodes
 
     for ng in list(bpy.data.node_groups):
         if ng.bl_idname == nodes.TREE_ID:
@@ -1167,7 +1167,7 @@ def test_improve_selected(api, mock):
 def test_socket_validation(api, mock):
     section("Socket type validation")
 
-    from tripo_blender import nodes
+    from terracotta import nodes
 
     ng = bpy.data.node_groups.new("SocketGraph", nodes.TREE_ID)
     gen = ng.nodes.new("TripoGenerateNode")
@@ -1219,8 +1219,8 @@ def test_socket_validation(api, mock):
 def test_task_picker(api, mock):
     section("Reusing tasks from history")
 
-    import tripo_blender as tb
-    from tripo_blender import nodes
+    import terracotta as tb
+    from terracotta import nodes
 
     settle(api)
     api.forget_history()
@@ -1295,7 +1295,7 @@ def test_task_picker(api, mock):
 def test_workspace_bundle(api, mock):
     section("Bundled workspace")
 
-    import tripo_blender as tb
+    import terracotta as tb
 
     path = tb.workspace_blend()
     check("workspace bundle ships with the addon", os.path.exists(path), path)
@@ -1334,8 +1334,8 @@ def test_workspace_bundle(api, mock):
 def test_examples(api, mock):
     section("Bundled examples")
 
-    import tripo_blender as tb
-    from tripo_blender import nodes
+    import terracotta as tb
+    from terracotta import nodes
 
     path = tb.examples_blend()
     check("examples bundle ships with the addon", os.path.exists(path), path)
@@ -1390,7 +1390,7 @@ def test_google_persistence(api, mock):
     section("Google results survive a restart")
 
     import inspect
-    from tripo_blender import nodes, panels
+    from terracotta import nodes, panels
 
     ng = bpy.data.node_groups.new("PersistG", nodes.TREE_ID)
     img = ng.nodes.new("GoogleImageNode")
@@ -1445,7 +1445,7 @@ def test_google_persistence(api, mock):
 def test_image_chains(api, mock):
     section("Image nodes feed 3D nodes")
 
-    from tripo_blender import nodes
+    from terracotta import nodes
 
     ng = bpy.data.node_groups.new("ChainG", nodes.TREE_ID)
     img = ng.nodes.new("GoogleImageNode")
@@ -1501,7 +1501,7 @@ def test_runner_safety(api, mock):
     section("Run Graph money safety")
 
     import threading as _threading
-    from tripo_blender import nodes, runner
+    from terracotta import nodes, runner
 
     a = bpy.data.node_groups.new("RunA", nodes.TREE_ID)
     b = bpy.data.node_groups.new("RunB", nodes.TREE_ID)
@@ -1563,7 +1563,7 @@ def test_runner_safety(api, mock):
 def test_keys_and_deprecation(api, mock):
     section("Key management and deprecation policy")
 
-    from tripo_blender import google_api as G, nodes
+    from terracotta import google_api as G, nodes
 
     check("api.has_key exists", callable(getattr(api, "has_key", None)))
     check("google_api.has_key exists", callable(getattr(G, "has_key", None)))
@@ -1594,7 +1594,7 @@ def test_money_guards(api, mock):
     section("Money guards")
 
     import time as _time
-    from tripo_blender import nodes, utils
+    from terracotta import nodes, utils
 
     check("v2 submit fallback removed", not hasattr(api, "_flavor"))
 
@@ -1669,7 +1669,7 @@ def test_recover_and_prune(api, mock):
 
     import os
     import time as _time
-    from tripo_blender import nodes
+    from terracotta import nodes
 
     # Recovery must key on the job id stamped at launch, not the node's name:
     # renaming a node used to sever it from its paid task forever.
@@ -1727,8 +1727,8 @@ def test_panel_retirement(api, mock):
     section("Single-surface UI")
 
     import inspect
-    import tripo_blender as tb
-    from tripo_blender import nodes, panels
+    import terracotta as tb
+    from terracotta import nodes, panels
 
     # The graph is the one product surface; no viewport panels remain.
     for gone in ("TRIPO_PT_main", "TRIPO_PT_cleanup", "TRIPO_PT_advanced"):
@@ -1777,7 +1777,7 @@ def test_feature_wins(api, mock):
     section("Batch animations, stale hints, adjustments, collections")
 
     import time as _time
-    from tripo_blender import google_api, nodes
+    from terracotta import google_api, nodes
 
     ng = bpy.data.node_groups.new("WinsGraph", nodes.TREE_ID)
 
@@ -1857,7 +1857,7 @@ def test_feature_wins(api, mock):
     imp.collection_name = "Generated Stuff"
     imp.at_cursor = False
     imp.job_id = "fake-coll-job"
-    import tripo_blender as tb
+    import terracotta as tb
     tb._on_import("fake-coll-job", {"objects": ["CollObj"]})
     coll = bpy.data.collections.get("Generated Stuff")
     check("collection created", coll is not None)
@@ -1874,7 +1874,7 @@ def test_feature_wins(api, mock):
 def test_run_graph_quote(api, mock):
     section("Run Graph cost quote")
 
-    from tripo_blender import nodes, runner
+    from terracotta import nodes, runner
 
     ng = bpy.data.node_groups.new("QuoteGraph", nodes.TREE_ID)
     img = ng.nodes.new("GoogleImageNode")
@@ -1913,8 +1913,8 @@ def test_hardening(api, mock):
     section("Hardening")
 
     import time as _time
-    import tripo_blender as tb
-    from tripo_blender import meshtools, nodes
+    import terracotta as tb
+    from terracotta import meshtools, nodes
 
     check("minimum Blender version is 4.0",
           tb.bl_info["blender"] >= (4, 0, 0), str(tb.bl_info["blender"]))
@@ -2143,7 +2143,7 @@ def test_hardening(api, mock):
 def test_google_preview_survives_restart(api, mock):
     section("Google previews survive a restart")
 
-    from tripo_blender import nodes
+    from terracotta import nodes
     ng = bpy.data.node_groups.new("PreviewGraph", nodes.TREE_ID)
     img = ng.nodes.new("GoogleImageNode")
     img.prompt = "preview persistence"
@@ -2170,7 +2170,7 @@ def test_google_preview_survives_restart(api, mock):
 def test_model_capability_matrix(api, mock):
     section("Per-model generation options")
 
-    from tripo_blender import costs as C, nodes
+    from terracotta import costs as C, nodes
 
     check("v2.5 accepts no advanced params",
           C.caps("v2.5-20250123") == {"export_uv"},
@@ -2251,7 +2251,7 @@ def test_model_capability_matrix(api, mock):
 def test_view_redo_and_thumb_persistence(api, mock):
     section("Per-view redo and Tripo preview persistence")
 
-    from tripo_blender import nodes
+    from terracotta import nodes
 
     def wait_google(job_id, timeout=10):
         deadline = time.time() + timeout
@@ -2351,8 +2351,8 @@ def test_view_image(api, mock):
 def test_lifecycle(api, mock):
     section("Register / unregister symmetry")
 
-    import tripo_blender as tb
-    from tripo_blender import workspace as ws
+    import terracotta as tb
+    from terracotta import workspace as ws
 
     tb.unregister()
     try:
@@ -2378,11 +2378,11 @@ def test_lifecycle(api, mock):
 def test_new_file_only_setup(api, mock):
     section("Auto-setup touches only brand-new files")
 
-    import tripo_blender as tb
+    import terracotta as tb
 
     check("decision helper exists",
           callable(getattr(tb, "_should_auto_setup", None)))
-    prefs = bpy.context.preferences.addons["tripo_blender"].preferences
+    prefs = bpy.context.preferences.addons["terracotta"].preferences
     prefs.auto_workspace = True
     # The headless suite runs on an unsaved file: furnishing is allowed.
     check("brand-new file may be furnished",
@@ -2409,7 +2409,7 @@ def test_new_file_only_setup(api, mock):
 def test_meshtools():
     section("Mesh tools")
 
-    from tripo_blender import meshtools, build
+    from terracotta import meshtools, build
 
     mesh = bpy.data.meshes.new("DenseTest")
     import bmesh
@@ -2443,7 +2443,7 @@ def test_meshtools():
 def test_build():
     section("Procedural builders")
 
-    from tripo_blender import build
+    from terracotta import build
 
     d = build.door(name="TestDoor", width=0.83, height=2.03, centre=(0, -2.55),
                    wall_face=-2.5)
@@ -2470,7 +2470,7 @@ def test_build():
 def test_costs():
     section("Credit maths")
 
-    from tripo_blender import costs as C, nodes
+    from terracotta import costs as C, nodes
 
     check("v3.1 text costs 20", C.base_cost("v3.1-20260211", "text") == 20)
     check("v3.1 image costs 30", C.base_cost("v3.1-20260211", "image") == 30)

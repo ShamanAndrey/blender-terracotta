@@ -10,7 +10,7 @@ keys are all it needs.
 
 ## Install
 
-1. Download `tripo_blender.zip` (or build it: `python3 tools/build_zip.py`).
+1. Download `terracotta.zip` (or build it: `python3 tools/build_zip.py`).
 2. Blender → Edit → Preferences → Add-ons → Install… → pick the zip → enable
    **Terracotta**. Blender 4.0 or newer.
 3. Open the **Generate** workspace from the top bar (new files get it
@@ -54,7 +54,7 @@ header menu.
 ## Costs
 
 Prices are quoted on every button and centralized in
-[costs.py](tripo_blender/costs.py). Ballpark: a textured v3.1 generation is
+[costs.py](terracotta/costs.py). Ballpark: a textured v3.1 generation is
 20–30 Tripo credits; rigging 25; a Gemini image $0.03–0.24 depending on model
 and size. The full API reference, with every task type and price we've
 measured, is in [TRIPO_API.md](TRIPO_API.md).

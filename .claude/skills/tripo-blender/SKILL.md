@@ -34,7 +34,7 @@ that's the first thing to check.
 Everything runs inside Blender's Python via `mcp__blender__execute_blender_code`:
 
 ```python
-from tripo_blender import api, meshtools
+from terracotta import api, meshtools
 api.balance()                                    # check before spending
 job = api.start(prompt="a brass telescope", name="Telescope",
                 model="v3.1-20260211")   # face count stays on auto
@@ -212,25 +212,25 @@ was built precisely so nobody has to rediscover this by spending money.
 
 | Path | What it is |
 | --- | --- |
-| `tripo_blender/` | The addon — `api.py` (Tripo bridge), `meshtools.py` (cleanup), `__init__.py` (UI) |
+| `terracotta/` | The addon — `api.py` (Tripo bridge), `meshtools.py` (cleanup), `__init__.py` (UI) |
 | `TRIPO_API.md` | Full API reference — read this before any unfamiliar API work |
 | `README.md` | Setup and usage |
 | `addon.py` | Upstream blender-mcp addon |
 
 ### Changing the addon
 
-Edit files in `tripo_blender/`, rezip, install, then force a clean reload —
+Edit files in `terracotta/`, rezip, install, then force a clean reload —
 `addon_install` alone does **not** re-run `register()`, so new properties will
 be missing:
 
 ```python
-saved = bpy.context.preferences.addons["tripo_blender"].preferences.tripo_api_key
-import tripo_blender as stale; stale.unregister()
-bpy.ops.preferences.addon_install(filepath=".../tripo_blender.zip", overwrite=True)
-for m in [m for m in list(sys.modules) if m.startswith("tripo_blender")]: del sys.modules[m]
+saved = bpy.context.preferences.addons["terracotta"].preferences.tripo_api_key
+import terracotta as stale; stale.unregister()
+bpy.ops.preferences.addon_install(filepath=".../terracotta.zip", overwrite=True)
+for m in [m for m in list(sys.modules) if m.startswith("terracotta")]: del sys.modules[m]
 linecache.clearcache(); importlib.invalidate_caches()
-import tripo_blender; tripo_blender.register()
-prefs = bpy.context.preferences.addons["tripo_blender"].preferences
+import terracotta; terracotta.register()
+prefs = bpy.context.preferences.addons["terracotta"].preferences
 if not prefs.tripo_api_key: prefs.tripo_api_key = saved
 bpy.ops.wm.save_userpref()
 ```

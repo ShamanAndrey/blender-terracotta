@@ -1,4 +1,4 @@
-"""Build tripo_blender.zip for installation.
+"""Build terracotta.zip for installation.
 
 Globs the package rather than listing files: a hardcoded list silently ships a
 stale addon the day a module is added -- which already happened once.
@@ -9,8 +9,8 @@ import os
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PKG = os.path.join(ROOT, "tripo_blender")
-OUT = os.path.join(ROOT, "tripo_blender.zip")
+PKG = os.path.join(ROOT, "terracotta")
+OUT = os.path.join(ROOT, "terracotta.zip")
 
 
 def package_files():
@@ -34,7 +34,7 @@ def main():
         os.remove(OUT)
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
         for full in files:
-            z.write(full, os.path.join("tripo_blender", os.path.basename(full)))
+            z.write(full, os.path.join("terracotta", os.path.basename(full)))
     print(f"wrote {OUT}: {len(files)} files")
     for f in files:
         print("  ", os.path.basename(f))

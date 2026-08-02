@@ -5,7 +5,7 @@ workspaces:
 
     Blender -b --python tools/build_examples.py
 
-Writes tripo_blender/examples.blend. Each example is a complete, runnable graph
+Writes terracotta/examples.blend. Each example is a complete, runnable graph
 with prompts already filled in, so opening one and pressing a button does
 something real rather than presenting an empty canvas.
 """
@@ -16,14 +16,14 @@ import sys
 import bpy
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "tripo_blender", "examples.blend")
+OUT = os.path.join(ROOT, "terracotta", "examples.blend")
 
 
 def enable_addon():
-    zip_path = os.path.join(ROOT, "tripo_blender.zip")
+    zip_path = os.path.join(ROOT, "terracotta.zip")
     if os.path.exists(zip_path):
         bpy.ops.preferences.addon_install(filepath=zip_path, overwrite=True)
-    bpy.ops.preferences.addon_enable(module="tripo_blender")
+    bpy.ops.preferences.addon_enable(module="terracotta")
 
 
 def frame(tree, label, x, y, text, width=460):
