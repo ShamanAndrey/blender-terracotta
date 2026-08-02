@@ -14,7 +14,7 @@ The order below is the fix, and each step exists because skipping it crashed:
 4. Restore the API key, then reattach the trees.
 
 Run with:
-    exec(open("/Users/andreyturakin/Desktop/blender/reload_addon.py").read())
+    exec(open("/path/to/repo/reload_addon.py").read())
 """
 
 import importlib
@@ -23,7 +23,9 @@ import sys
 
 import bpy
 
-ZIP = "/Users/andreyturakin/Desktop/blender/tripo_blender.zip"
+import os
+ZIP = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                   "tripo_blender.zip")
 ADDON = "tripo_blender"
 
 

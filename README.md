@@ -70,13 +70,14 @@ python3 tools/build_zip.py
 ```
 
 The suite mocks the network layer and runs the real import pipeline —
-generation, chaining, rigging, history, money-guards — currently 335 checks.
+generation, chaining, rigging, history, money-guards — 400+ checks.
 `CLAUDE.md` documents the project conventions; `ROADMAP.md` is where this is
 going.
 
-`addon.py` and `.mcp.json` are development tooling only (the
+`.mcp.json` is development tooling only (for the
 [blender-mcp](https://github.com/ahujasid/blender-mcp) bridge that lets an AI
-assistant drive a live Blender session). End users don't need them.
+assistant drive a live Blender session; install its addon from upstream if
+you want that workflow). End users don't need it.
 
 ## License
 

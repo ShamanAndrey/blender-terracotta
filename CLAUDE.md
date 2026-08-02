@@ -117,7 +117,7 @@ which produced what.
 | `.claude/skills/tripo-blender/` | Workflow skill |
 | `TRIPO_API.md` | API reference |
 | `ROADMAP.md` | Where this is going |
-| `addon.py` | Upstream blender-mcp addon |
+| `addon.py` | Upstream blender-mcp addon (untracked; fetch from github.com/ahujasid/blender-mcp) |
 
 ## API keys
 

@@ -23,3 +23,7 @@ __pycache__/
 # Never any key material (keys live in Blender preferences, env vars, or
 # ~/.tripo_key -- never in this repo).
 *.key
+
+# Upstream blender-mcp addon (MIT, dev-only): fetch from
+# github.com/ahujasid/blender-mcp rather than vendoring it here.
+/addon.py
