@@ -103,6 +103,13 @@ which produced what.
   default cube once occluded a reference render and produced a grey blob.
 - **Never `addon_disable` before reinstalling the addon** — it discards the
   stored API key with no way to recover it. See SKILL.md for the reload dance.
+- **Never migrate addon preferences headlessly while a Blender session is
+  open.** Blender auto-saves preferences from memory on exit, resurrecting
+  the old enabled-addons list and clobbering the migrated userpref — the
+  next launch then loads no addon, files open with Undefined nodes, and one
+  save strips every node's settings (recover the graph from the .blend1;
+  the keys are gone for good). Do preference surgery from inside the
+  running session, or with every Blender closed.
 - **Don't probe the API to discover parameters.** Unknown or badly-valued fields
   usually create a real, billed task. Only type-invalid values, omitted required
   fields, and unknown routes are free.
