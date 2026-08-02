@@ -8,7 +8,8 @@ in your scene and your asset library.
 ## Product direction
 
 **Open tool, optional paid convenience.** The addon is open source
-(Apache-2.0) and BYOK — anyone can use it with their own Tripo and Google
+(GPL-3.0-or-later -- the extensions platform requires it, and bpy-importing
+code is a Blender derivative anyway) and BYOK — anyone can use it with their own Tripo and Google
 keys, forever. A hosted credit system may come later for people who don't
 want to obtain keys; that backend stays closed and is *just another provider
 entry* — same adapter, different base URL, user token instead of an API key.

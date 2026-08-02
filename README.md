@@ -81,4 +81,6 @@ you want that workflow). End users don't need it.
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE).
+GPL-3.0-or-later — see [LICENSE](LICENSE). Blender add-ons are derivative
+works of GPL Blender, and this is also the license the official
+[Extensions platform](https://extensions.blender.org) requires.
