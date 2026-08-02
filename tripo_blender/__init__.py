@@ -10,15 +10,15 @@ depends on it.
 """
 
 bl_info = {
-    "name": "Kiln",
+    "name": "Terracotta",
     "author": "local",
     "version": (2, 2),
     # UILayout.progress, temp_override and wm.obj_import are all 4.0+ --
     # on 3.x the Jobs panel would crash exactly while a paid job is running.
     "blender": (4, 0, 0),
     "location": "Generate workspace (top bar)",
-    "description": "AI asset kiln: prompts in, fired 3D assets out. Tripo "
-                   "models, Google images, rig, animate, export",
+    "description": "An army of AI-generated assets, fired inside Blender: "
+                   "Tripo models, Google images, rig, animate, export",
     "category": "3D View",
 }
 
