@@ -7,7 +7,7 @@ from the graph twice before it was removed.
 
 import bpy
 
-from . import api, previews
+from . import api, vault, previews
 from .utils import _wrap
 
 
@@ -27,6 +27,13 @@ class TRIPO_PT_jobs(TripoPanel, bpy.types.Panel):
     bl_idname = "TRIPO_PT_jobs"
 
     def draw(self, context):
+        if vault.damage_detected():
+            box = self.layout.box()
+            box.alert = True
+            box.label(text="Graphs damaged (addon was", icon="ERROR")
+            box.label(text="disabled when file was saved)")
+            box.operator("tripo.vault_restore", icon="RECOVER_LAST")
+
         layout = self.layout
         jobs = api.status()
         if not jobs:

@@ -2348,6 +2348,93 @@ def test_view_image(api, mock):
     check("image datablock loaded", len(bpy.data.images) > n_images)
 
 
+def test_vault(api, mock):
+    section("Graph vault")
+
+    import os
+    import tempfile
+    from terracotta import nodes, vault
+
+    key_path = os.path.join(tempfile.gettempdir(), "vault_test.blend")
+
+    # Hermetic: earlier sections leave example trees in the session, and the
+    # vault (correctly) snapshots every tree in the file.
+    for t_ in [t_ for t_ in bpy.data.node_groups
+               if t_.bl_idname == nodes.TREE_ID]:
+        bpy.data.node_groups.remove(t_)
+
+    ng = bpy.data.node_groups.new("VaultGraph", nodes.TREE_ID)
+    frame = ng.nodes.new("NodeFrame")
+    frame.name = "VaultFrame"
+    frame.label = "Notes"
+    body = bpy.data.texts.new("vault frame text")
+    body.write("remember me")
+    frame.text = body
+    gen = ng.nodes.new("TripoGenerateNode")
+    gen.prompt = "a vaulted barrel"
+    gen.model = "P1-20260311"
+    gen.last_task = "task-vault-1"
+    gen.parent = frame
+    rr = ng.nodes.new("NodeReroute")
+    imp = ng.nodes.new("TripoImportNode")
+    imp.collection_name = "Vaulted"
+    anim = ng.nodes.new("TripoAnimateNode")
+    anim.animations.add().preset = "preset:idle"
+    anim.animations.add().preset = "preset:walk"
+    ng.links.new(gen.outputs["Asset"], rr.inputs[0])
+    ng.links.new(rr.outputs[0], imp.inputs["Asset"])
+
+    n = vault.write_vault(key_path)
+    check("vault snapshot written", n is not None and n >= 1, str(n))
+
+    # Wipe and restore.
+    bpy.data.node_groups.remove(ng)
+    restored, skipped = vault.restore(key_path)
+    check("vault restores the tree", len(restored) == 1 and not skipped,
+          f"{len(restored)} restored, skipped {skipped}")
+    t = restored[0]
+    g = t.nodes.get("Generate 3D") or next(
+        (x for x in t.nodes if x.bl_idname == "TripoGenerateNode"), None)
+    check("props survive the round trip",
+          g is not None and g.prompt == "a vaulted barrel"
+          and g.model == "P1-20260311" and g.last_task == "task-vault-1",
+          str(g and (g.prompt, g.model, g.last_task)))
+    check("frame text survives",
+          any(x.bl_idname == "NodeFrame" and x.text
+              and "remember me" in x.text.as_string() for x in t.nodes))
+    check("node keeps its frame parent",
+          g is not None and g.parent is not None)
+    a = next((x for x in t.nodes if x.bl_idname == "TripoAnimateNode"), None)
+    check("collection props survive",
+          a is not None and [s_.preset for s_ in a.animations] ==
+          ["preset:idle", "preset:walk"])
+    i = next((x for x in t.nodes if x.bl_idname == "TripoImportNode"), None)
+    check("links survive through the reroute",
+          i is not None and i.upstream_task() == "task-vault-1",
+          str(i and i.upstream_task()))
+
+    # A healthy same-name tree is never clobbered.
+    restored2, _ = vault.restore(key_path)
+    dup = next((t_ for t_ in restored2 if "VaultGraph" in t_.name), None)
+    check("healthy tree not clobbered on re-restore",
+          dup is not None and dup.name.endswith("(vault)"),
+          dup.name if dup else "none")
+    for extra in restored2:
+        bpy.data.node_groups.remove(extra)
+
+    # The damage guard: a damaged-looking tree must block the vault write.
+    class _FakeNode:
+        bl_idname = "NodeUndefined"
+
+    class _FakeTree:
+        bl_idname = "NodeTreeUndefined"
+        nodes = ()
+    check("undefined tree reads as damaged", vault._is_damaged(_FakeTree()))
+    t2 = restored[0]
+    check("healthy tree reads as healthy", not vault._is_damaged(t2))
+    bpy.data.node_groups.remove(t2)
+
+
 def test_lifecycle(api, mock):
     section("Register / unregister symmetry")
 
@@ -2364,6 +2451,9 @@ def test_lifecycle(api, mock):
               not bpy.app.timers.is_registered(ws._focus_tripo_tab))
         check("load handler removed",
               tb._on_file_load not in bpy.app.handlers.load_post)
+        from terracotta import vault as _vault
+        check("save handler removed",
+              _vault._on_save not in bpy.app.handlers.save_post)
     finally:
         tb.register()
 
@@ -2550,6 +2640,7 @@ def main():
         test_view_image(api, mock)
         test_google_preview_survives_restart(api, mock)
         test_view_redo_and_thumb_persistence(api, mock)
+        test_vault(api, mock)
         test_lifecycle(api, mock)
         test_new_file_only_setup(api, mock)
     finally:

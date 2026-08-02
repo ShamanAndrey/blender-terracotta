@@ -25,7 +25,7 @@ bl_info = {
 import bpy
 
 from . import (api, build, costs, google_api, meshtools, nodes, operators,
-               panels, previews, runner, utils, workspace)
+               panels, previews, runner, utils, vault, workspace)
 
 # Re-exports: the public surface predates the module split, and tests plus any
 # user scripts address these through the package. Keep them working.
@@ -281,6 +281,7 @@ classes = (
     + workspace.classes
     + runner.classes
     + panels.classes
+    + vault.classes
 )
 
 
@@ -297,6 +298,8 @@ def register():
     nodes.register()
     if _on_file_load not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(_on_file_load)
+    if vault._on_save not in bpy.app.handlers.save_post:
+        bpy.app.handlers.save_post.append(vault._on_save)
     bpy.types.TOPBAR_MT_workspace_menu.append(_workspace_menu)
     bpy.types.NODE_HT_header.append(_node_header)
     bpy.types.VIEW3D_MT_object_context_menu.append(_object_menu)
@@ -323,6 +326,8 @@ def unregister():
     nodes.unregister()
     if _on_file_load in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(_on_file_load)
+    if vault._on_save in bpy.app.handlers.save_post:
+        bpy.app.handlers.save_post.remove(vault._on_save)
     previews.unregister()
 
     if hasattr(bpy.types.Scene, "tripo_balance"):
