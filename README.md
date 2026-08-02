@@ -4,6 +4,12 @@
 [![license](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 [![release](https://img.shields.io/github/v/release/ShamanAndrey/blender-terracotta)](https://github.com/ShamanAndrey/blender-terracotta/releases)
 
+![The Terracotta node graph: a concept image of a nine-tailed fox, four consistent generated views, and the resulting 3D model -- with the real price on every button](docs/workflow.png)
+
+*One graph from idea to asset: concept image ($0.13) → four consistent views ($0.54) → textured 3D model (30 credits) — every button quotes its price before you click.*
+
+![The generated nine-tailed fox model in the Blender viewport](docs/fox-result.gif)
+
 **Terracotta** is AI 3D asset generation as a node graph, inside Blender -- an army of assets, fired where you work. Generate meshes with
 [Tripo](https://www.tripo3d.ai), concept images and reference views with
 Google Gemini, then chain retopology, texturing, segmentation, rigging,

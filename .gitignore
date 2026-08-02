@@ -27,3 +27,4 @@ __pycache__/
 # Upstream blender-mcp addon (MIT, dev-only): fetch from
 # github.com/ahujasid/blender-mcp rather than vendoring it here.
 /addon.py
+/*.mov
