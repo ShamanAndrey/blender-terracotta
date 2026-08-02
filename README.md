@@ -1,5 +1,9 @@
 # Terracotta for Blender
 
+[![tests](https://github.com/ShamanAndrey/blender-terracotta/actions/workflows/tests.yml/badge.svg)](https://github.com/ShamanAndrey/blender-terracotta/actions/workflows/tests.yml)
+[![license](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
+[![release](https://img.shields.io/github/v/release/ShamanAndrey/blender-terracotta)](https://github.com/ShamanAndrey/blender-terracotta/releases)
+
 **Terracotta** is AI 3D asset generation as a node graph, inside Blender -- an army of assets, fired where you work. Generate meshes with
 [Tripo](https://www.tripo3d.ai), concept images and reference views with
 Google Gemini, then chain retopology, texturing, segmentation, rigging,
