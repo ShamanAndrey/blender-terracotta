@@ -2302,6 +2302,24 @@ def test_view_redo_and_thumb_persistence(api, mock):
     check("left view replaced", second["left"] != first["left"])
     check("front view carried over", second["front"] == first["front"])
 
+    # Google nodes can re-adopt a past result from history -- the same
+    # affordance Tripo nodes always had. Orphaned paid images were
+    # otherwise unreachable when a node lost its job id.
+    orphan = ng.nodes.new("GoogleViewsNode")
+    api._record({"job": "job-orphan-views", "kind": "google_views",
+                 "name": "OrphanViews",
+                 "images": {v: mock.sample_image()
+                            for v in ("front", "left", "back", "right")},
+                 "time": 1})
+    bpy.ops.tripo.pick_task(node_name=orphan.name, tree_name=ng.name,
+                            field="job_id", kind_filter="google_views",
+                            task="job-orphan-views")
+    check("google node adopts a history row",
+          orphan.job_id == "job-orphan-views")
+    check("adopted images resolve", set(orphan.images()) ==
+          {"front", "left", "back", "right"}, str(set(orphan.images())))
+    check("adopted node reports a result", orphan.has_result())
+
     # A Tripo node picked up after a restart shows its stored result.
     gen = ng.nodes.new("TripoGenerateNode")
     gen.prompt = "persist me"

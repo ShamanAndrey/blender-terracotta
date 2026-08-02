@@ -750,6 +750,15 @@ class GoogleImageNode(GoogleNodeMixin, TripoNode, bpy.types.Node):
         op.node_name = self.name
         op.tree_name = self.id_data.name
         layout.label(text="Billed by Google, not Tripo credits", icon="INFO")
+        row = layout.row(align=True)
+        row.label(text="or reuse:")
+        op = row.operator("tripo.pick_task", text="From history",
+                          icon="VIEWZOOM")
+        op.node_name = self.name
+        op.tree_name = self.id_data.name
+        op.field = "job_id"
+        op.kind_filter = "google_image"
+
         self.draw_status(layout)
 
 
@@ -835,6 +844,15 @@ class GoogleViewsNode(GoogleNodeMixin, TripoNode, bpy.types.Node):
         op.node_name = self.name
         op.tree_name = self.id_data.name
         layout.label(text="Billed by Google", icon="INFO")
+        row = layout.row(align=True)
+        row.label(text="or reuse:")
+        op = row.operator("tripo.pick_task", text="From history",
+                          icon="VIEWZOOM")
+        op.node_name = self.name
+        op.tree_name = self.id_data.name
+        op.field = "job_id"
+        op.kind_filter = "google_views"
+
         self.draw_status(layout)
 
 

@@ -882,11 +882,14 @@ def _task_enum_items(self, context):
         kind = str(entry.get("kind") or "generate")
         if wanted and kind != wanted:
             continue
-        task = entry.get("task_id")
-        if not task:
+        # Tripo rows are keyed by task id; Google rows by job id. Both are
+        # adoptable references -- excluding job-keyed rows left Google nodes
+        # with no way to re-attach their own paid results.
+        ref = entry.get("task_id") or entry.get("job")
+        if not ref:
             continue
-        label = entry.get("name") or (entry.get("prompt") or "")[:28] or task[:8]
-        items.append((task, f"{label}  ({kind})", f"task {task}"))
+        label = entry.get("name") or (entry.get("prompt") or "")[:28] or ref[:8]
+        items.append((ref, f"{label}  ({kind})", ref))
     if not items:
         items = [("", "Nothing in history", "")]
     _task_enum_cache = items
@@ -919,7 +922,7 @@ class TRIPO_OT_pick_task(bpy.types.Operator):
             self.report({"WARNING"}, "Nothing selected")
             return {"CANCELLED"}
         setattr(node, self.field, self.task)
-        self.report({"INFO"}, f"Using task {self.task[:8]}")
+        self.report({"INFO"}, f"Using {self.task[:12]}")
         _tag_redraw()
         return {"FINISHED"}
 
