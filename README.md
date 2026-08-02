@@ -1,4 +1,4 @@
-# Kiln
+# Kiln for Blender
 
 **Kiln** is AI 3D asset generation as a node graph, inside Blender: prompts in, fired assets out. Generate meshes with
 [Tripo](https://www.tripo3d.ai), concept images and reference views with

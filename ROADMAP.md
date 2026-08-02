@@ -40,7 +40,9 @@ resold compute, inherited support surface, abuse running under our key
 ## Next
 
 - **Publish**: create the public repo and push (owner's call). README and
-  LICENSE ready.
+  LICENSE ready. External name "Kiln for Blender" (descriptive form -- the
+  Blender trademark disallows "Blender Kiln"-style branding), suggested
+  repo slug `blender-kiln`; in-app it is just "Kiln".
 - **Live price verifications**, piggybacked on real runs: retarget 10 vs 20,
   extreme-texture surcharge, completion / quick_cap, v3 convert extras rule,
   P1 multiview.
