@@ -45,6 +45,23 @@ to rediscover this by spending credits.
 
 These were learned the expensive way. Follow them unless the user says otherwise.
 
+### No fallback behavior
+
+Never add silent alternate code paths taken when a primary one fails -- they
+mask the original failure and cause misdiagnosis later, far from the cause.
+Route deterministically from data; on failure, raise with the real error.
+A *defined default* for a genuinely absent input is fine; a *silent alternate
+path after a failure* is not. Idempotent free retries of reads (task polls)
+are retries, not fallbacks. Cases that earned this rule: the v3->v2 submit
+fallback (could double-bill), _find_node's global search (could bill the
+wrong tree's node), name-based task recovery (bound wrong tasks).
+
+### Test before spending
+
+Run the mocked offline suite before anything that costs credits, and prefer
+free verification (task polls echo inputs and billed credits) over paid
+re-runs.
+
 ### Leave the face count on auto
 
 Do not pass `face_limit`. Capping faces at generation was recommended after
